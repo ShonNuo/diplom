@@ -1,16 +1,18 @@
 \section{\\ Исследование архитектуры пикосети Bluetooth и организация обмена \\данными через RFCOMM}
 
 \subsection{Цель работы}
-Изучить принципы построения Bluetooth-пикосетей, технологию скачкообразной перестройки рабочей частоты (FHSS) и механизмы установления логических соединений. Получить практические навыки программирования сетевого взаимодействия в архитектуре «мастер–ведомые» с использованием Python и стека BlueZ.
+Изучить принципы построения Bluetooth-пикосетей, технологию скачкообразной перестройки рабочей частоты (FHSS) и механизмы установления логических соединений. Получить практические навыки программирования сетевого взаимодействия в архитектуре «мастер–ведомые» с использованием Python, стека BlueZ и среды разработки Arduino IDE.
 
 \subsection{Задачи}
 \begin{itemize}[nosep]
     \item Изучить топологию пикосети, роли устройств (мастер/слейв) и ограничения архитектуры.
     \item Рассмотреть принцип работы FHSS, структуру частотной сетки и синхронизацию каналов.
     \item Ознакомиться с протоколом RFCOMM, его назначением и особенностями эмуляции последовательного порта.
-    \item Настроить два модуля ESP32/ESP8266 в режиме Bluetooth Classic SPP-серверов.
+    \item Освоить процесс подготовки среды Arduino IDE для работы с ESP32 и загрузки прошивки.
+    \item Модифицировать базовую прошивку узла.
+    \item Настроить два модуля ESP32 в режиме Bluetooth Classic SPP-серверов.
     \item Разработать и запустить Python-скрипт на ПК, устанавливающий параллельные RFCOMM-соединения с обоими устройствами.
-    \item Организовать двунаправленный обмен данными, протоколировать процесс и проанализировать надёжность канала.
+    \item Организовать двунаправленный обмен данными, проверить наличие ФИО в возвращаемых пакетах.
 \end{itemize}
 
 \subsection{Теоретический материал}
@@ -50,28 +52,71 @@
 
 В ОС семейства Linux реализация RFCOMM доступна через системные сокеты. В языке Python для работы с Bluetooth Classic и установления RFCOMM-соединений используется стандартная библиотека \texttt{socket} с доменом \texttt{AF\_BLUETOOTH} и протоколом \texttt{BTPROTO\_RFCOMM}. После установления соединения программный интерфейс полностью идентичен работе с обычными TCP-сокетами, что упрощает разработку клиент-серверных приложений для обмена текстовыми и бинарными данными.
 
+\subsubsection{Среда разработки Arduino IDE и загрузка прошивки в ESP32}
+Для программирования микроконтроллеров ESP32 в данной лабораторной работе используется среда \textbf{Arduino IDE}. Это кроссплатформенное приложение, позволяющее писать код на C/C++ и загружать его в микроконтроллер через USB-интерфейс.
+
+\textbf{Основные этапы подготовки и загрузки:}
+\begin{enumerate}
+    \item \textbf{Установка поддержки ESP32:} В настройках Arduino IDE (File $\rightarrow$ Preferences) в поле \textit{Additional Boards Manager URLs} необходимо добавить ссылку на репозиторий ESP32: \texttt{https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package\_esp32\_index.json}. Затем в Board Manager устанавливается пакет \textit{esp32 by Espressif Systems}.
+    \item \textbf{Выбор платы и порта:} В меню Tools $\rightarrow$ Board выбирается конкретная модель (например, \textit{ESP32 Dev Module}). В меню Tools $\rightarrow$ Port выбирается соответствующий USB-порт (в Linux обычно \texttt{/dev/ttyUSB0} или \texttt{/dev/ttyACM0}).
+    \item \textbf{Права доступа в Linux:} Для загрузки прошивки пользователь должен иметь права на запись в USB-порт. Обычно это решается добавлением пользователя в группу \texttt{dialout}:
+    \begin{lstlisting}
+user@host:~$ sudo usermod -a -G dialout $USER
+    \end{lstlisting}
+    После выполнения команды требуется перезагрузка системы или выход из сеанса.
+    \item \textbf{Компиляция и загрузка:} Код компилируется и загружается нажатием кнопки \textit{Upload} (стрелка вправо). При загрузке модуль ESP32 автоматически переходит в режим программирования (благодаря схеме автопереключения на базе транзисторов или ручному нажатию кнопки BOOT).
+\end{enumerate}
+
 \subsection{Порядок выполнения лабораторной работы}
 
 \textbf{Примечание.} Для выполнения работы требуется ПК с установленным Linux и стеком BlueZ, а также два микроконтроллера ESP32 с поддержкой Bluetooth Classic. Перед началом работы устройства должны быть сопряжены с ПК (см. Лабораторную работу 1).
 
 \begin{enumerate}[nosep, leftmargin=*]
-    \item Подготовьте микроконтроллеры ESP32. Прошейте их микропрограммой, реализующей профиль SPP (Serial Port Profile) в режиме сервера. Убедитесь, что модули находятся в режиме \texttt{discoverable} и \texttt{pairable}. Запишите 48-битные MAC-адреса обоих устройств (формат \texttt{XX:XX:XX:XX:XX:XX}).
+    \item \textbf{Модификация прошивки (идентификация студента):}
+    \begin{itemize}
+        \item Откройте предоставленный базовый скетч для ESP32 в Arduino IDE.
+        \item Найдите в коде функцию обработки входящих сообщений (блок \texttt{if (SerialBT.-\allowbreak available())}).
+        \item В месте формирования ответного сообщения найдите переменную, отвечающую за статус или текст ответа (например, \texttt{String response = "YOUR MESSAGE";} или аналогичную константу).
+        \item Замените стандартное значение этой переменной на ваше \textbf{Фамилию Имя Отчество}
+    \end{itemize}
 
-    \item Установите необходимые системные пакеты на лабораторном ПК:
+    \item \textbf{Загрузка прошивки:} Подключите первый модуль ESP32 к ПК, выберите правильный порт и плату в Arduino IDE, затем загрузите модифицированную прошивку. Повторите процедуру для второго модуля. Запишите 48-битные MAC-адреса обоих устройств.
+
+    \item \textbf{Проверка и освобождение каналов связи:}
+    \begin{itemize}
+        \item Linux (BlueZ) может автоматически устанавливать соединение с ранее сопряженными устройствами при их включении. Это заблокирует порт для вашего Python-скрипта.
+        \item Проверьте статус подключений командой:
+        \begin{lstlisting}
+user@host:~$ bluetoothctl devices connected
+        \end{lstlisting}
+        \item Если ваши устройства (ESP32-Node1/Node2) отображаются в списке подключенных, необходимо принудительно разорвать соединение для каждого из них:
+        \begin{lstlisting}
+user@host:~$ bluetoothctl disconnect XX:XX:XX:XX:XX:XX
+        \end{lstlisting}
+        \item Убедитесь, что устройства остаются в состоянии \texttt{paired} (сопряжены), но \texttt{not connected} (не подключены).
+    \end{itemize}
+
+    \item Установите необходимые системные пакеты на лабораторном ПК (если не установлены):
     \begin{lstlisting}
 user@host:~$ sudo apt update
 user@host:~$ sudo apt install python3 python3-pip libbluetooth-dev
 user@host:~$ pip3 install --user pybluez
     \end{lstlisting}
 
-    \item Создайте файл \texttt{bt\_master.py} и реализуйте скрипт, устанавливающий два параллельных RFCOMM-соединения. Базовая структура приведена в листинге 2.1. Замените \texttt{MAC\_ESP1} и \texttt{MAC\_ESP2} на реальные адреса ваших модулей.
+    \item Создайте файл \texttt{bt\_master.py} и реализуйте скрипт, устанавливающий два параллельных RFCOMM-соединения. Скрипт должен:
+    \begin{itemize}
+        \item Подключаться к обоим устройствам.
+        \item Отправлять тестовые команды (например, \texttt{"PING"}).
+        \item Принимать ответы и проверять, содержится ли в них ваше ФИО.
+    \end{itemize}
+    Базовая структура приведена в листинге 1. Замените \texttt{MAC\_ESP1} и \texttt{MAC\_ESP2} на реальные адреса ваших модулей.
 
     \item Запустите скрипт с правами суперпользователя (для доступа к HCI-интерфейсу):
     \begin{lstlisting}
 user@host:~$ sudo python3 bt_master.py
     \end{lstlisting}
 
-    \item Наблюдайте за выводом терминала. Скрипт должен последовательно подключиться к обоим устройствам, отправить тестовые пакеты и получить ответы. В случае разрыва соединения скрипт должен автоматически выполнить повторное подключение.
+    \item Наблюдайте за выводом терминала. Скрипт должен подключиться к устройствам, отправить команду и получить ответ вида \texttt{[ACK-NODE2] Received: PING | Status: PONG}.
 
     \item В параллельном окне терминала запустите мониторинг трафика:
     \begin{lstlisting}
@@ -79,7 +124,7 @@ user@host:~$ sudo btmon -w lab02_trace.log
     \end{lstlisting}
     После завершения обмена остановите \texttt{btmon} и просмотрите лог, обращая внимание на этапы \texttt{L2CAP Connect Request}, \texttt{RFCOMM SABM} и \texttt{Encryption Change}.
 
-    \item Зафиксируйте в отчёте успешные подключения, переданные/принятые байты и время отклика от каждого ведомого устройства.
+    \item Зафиксируйте в отчёте успешные подключения, факт возврата правильного ФИО от обоих устройств, переданные/принятые байты.
 \end{enumerate}
 
 \begin{lstlisting}[caption={Базовая структура Python-скрипта для управления пикосетью}]
@@ -90,11 +135,9 @@ import bluetooth
 # MAC addresses of slave devices (replace with real ones)
 ESP1_MAC = "AA:BB:CC:DD:EE:01"
 ESP2_MAC = "AA:BB:CC:DD:EE:02"
-RFCOMM_PORT = 1  # Standard port for SPP
-
 def connect_rfcomm(mac_addr, port=RFCOMM_PORT):
-    sock = socket.socket(socket.AF_BLUETOOTH, 
-                         socket.SOCK_STREAM, 
+    sock = socket.socket(socket.AF_BLUETOOTH,
+                         socket.SOCK_STREAM,
                          socket.BTPROTO_RFCOMM)
     try:
         sock.connect((mac_addr, port))
@@ -106,7 +149,8 @@ def connect_rfcomm(mac_addr, port=RFCOMM_PORT):
 
 def exchange_data(sock, device_id):
     if not sock: return
-    msg = f"Data from Master -> {device_id}\n"
+    #msg = f"Data from Master -> {device_id}\n"
+    msg = "PING"
     sock.send(msg.encode('utf-8'))
     response = sock.recv(1024).decode('utf-8').strip()
     print(f"<- Response from {device_id}: {response}")
@@ -115,14 +159,14 @@ def main():
     print("=== Piconet initialization ===")
     s1 = connect_rfcomm(ESP1_MAC)
     s2 = connect_rfcomm(ESP2_MAC)
-    
+
     if s1 and s2:
         print("=== Both channels active. Starting exchange ===")
         for i in range(5):
             exchange_data(s1, "ESP32_1")
             exchange_data(s2, "ESP32_2")
             time.sleep(1)
-        
+
         s1.close()
         s2.close()
         print("=== Connections closed ===")
@@ -131,6 +175,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 \end{lstlisting}
 
 \subsection{Содержание отчета}
@@ -141,10 +186,10 @@ if __name__ == "__main__":
     \item Листинги результатов работы:
     \begin{enumerate}[label=\alph*), nosep]
         \item схема топологии созданной пикосети с указанием ролей и MAC-адресов;
+        \item фрагмент кода прошивки ESP32 с указанием места вставки ФИО;
         \item листинг Python-скрипта с комментариями;
-        \item вывод терминала с результатами подключения и обмена данными;
-        \item фрагменты лога \texttt{btmon}, подтверждающие установление L2CAP- и RFCOMM-каналов, а также активацию шифрования;
-        \item таблица времени отклика и потерь пакетов для каждого ведомого устройства.
+        \item вывод терминала с результатами подключения и подтверждением наличия ФИО в ответе устройства;
+        \item фрагменты лога \texttt{btmon}, подтверждающие установление L2CAP- и RFCOMM-каналов;
     \end{enumerate}
     \item Ответы на контрольные вопросы.
     \item Краткие выводы по работе.
@@ -162,4 +207,5 @@ if __name__ == "__main__":
     \item Почему при программировании сокетов в Python используется константа \texttt{BTPROTO\_RFCOMM}?
     \item Каким образом обеспечивается изоляция логических каналов в рамках одного физического соединения?
     \item Какие этапы установки RFCOMM-соединения можно наблюдать в логе \texttt{btmon}?
+    \item Какая группа пользователей в Linux необходима для доступа к последовательным портам при прошивке ESP32?
 \end{enumerate}
