@@ -1,0 +1,68 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+\usepackage{geometry}
+\geometry{top=2cm, bottom=2cm, left=2.5cm, right=1.5cm}
+
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{indentfirst}
+\usepackage{seqsplit}
+\usepackage{caption}
+\usepackage{amsmath}
+\counterwithin{table}{section}
+
+% -------------------- ОФОРМЛЕНИЕ ЗАГОЛОВКОВ --------------------
+\setcounter{secnumdepth}{3}
+
+\titleformat{\section}
+  {\centering\normalfont\normalsize\bfseries}
+  {Лабораторная работа \thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\centering\normalfont\normalsize\bfseries}
+  {\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\centering\normalfont\normalsize\bfseries}
+  {\thesubsubsection}{1em}{}
+
+% -------------------- ЛИСТИНГИ --------------------
+
+% нумерация листингов по разделам (1.1, 1.2, 2.1 ...)
+
+
+
+% оформление подписи (по центру сверху)
+\DeclareCaptionFormat{listing}{
+  \parbox{\textwidth}{\centering#1#2#3}
+}
+
+\captionsetup[lstlisting]{
+  format=listing,
+  labelfont=it,
+  textfont=it,
+  justification=centering,
+  singlelinecheck=false
+}
+
+% стиль кода
+\lstset{
+    language=bash,
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!5},
+    keywordstyle=\color{blue!70!black},
+    commentstyle=\color{gray},
+    captionpos=t,
+    showspaces=false,
+    showstringspaces=false
+}
