@@ -1,0 +1,264 @@
+\section{\\Исследование архитектуры Bluetooth Low Energy (BLE) и реализация \\ кастомных профилей GATT}
+
+\subsection{Цель работы}
+Изучить архитектуру стека протоколов Bluetooth Low Energy (BLE), отличия от классического Bluetooth и структуру профиля Generic Attribute Profile (GATT). Получить практические навыки разработки кастомных BLE-сервисов и характеристик на базе микроконтроллеров ESP32, а также организации взаимодействия между двумя устройствами в топологии «Центральное–Периферийное».
+
+\subsection{Задачи}
+\begin{itemize}[nosep]
+    \item Изучить теоретические основы BLE: роли устройств (Central/Peripheral), рекламные пакеты (Advertising), соединение и структуру GATT.
+    \item Рассмотреть понятие UUID, сервисов (Services) и характеристик (Characteristics) в контексте BLE.
+    \item Разработать прошивку для ESP32, реализующую роль BLE-периферии (Server) с кастомным сервисом.
+    \item Разработать прошивку для второго ESP32, реализующего роль BLE-централи (Client) для подключения и чтения/записи данных.
+    \item Организовать двунаправленный обмен данными через характеристики с правами READ, WRITE и NOTIFY.
+    \item Протоколировать процесс соединения и обмена данными, оценить энергоэффективность по сравнению с классическим Bluetooth.
+\end{itemize}
+
+\subsection{Теоретический материал}
+
+\subsubsection{Архитектура Bluetooth Low Energy (BLE)}
+Bluetooth Low Energy (BLE, версия Bluetooth 4.0 и выше) был разработан с упором на сверхнизкое энергопотребление, что позволяет устройствам работать от одной батарейки типа «таблетка» в течение месяцев или лет. В отличие от классического Bluetooth, который ориентирован на постоянный поток данных (аудио, файлы), BLE оптимизирован для передачи небольших пакетов данных с большими интервалами.
+
+Ключевые отличия BLE от Classic Bluetooth:
+\begin{itemize}[nosep]
+    \item \textbf{Модуляция и каналы}: BLE использует 40 каналов шириной 2 МГц в диапазоне 2.4 ГГц (3 рекламных канала и 37 каналов данных). Классический Bluetooth использует 79 каналов по 1 МГц.
+    \item \textbf{Роли устройств}: В BLE устройства делятся на \textbf{Broadcaster/Observer} (для рекламы без соединения) и \textbf{Peripheral/Central}. Peripheral (периферия) рекламирует себя и ждет подключения, Central (центральное устройство) сканирует эфир и инициирует соединение.
+    \item \textbf{Скорость соединения}: BLE устанавливает соединение за несколько миллисекунд, тогда как классическому Bluetooth требуются секунды.
+    \item \textbf{Потребление энергии}: BLE потребляет в 10–100 раз меньше энергии благодаря коротким импульсам передачи и длительным периодам сна.
+\end{itemize}
+
+\subsubsection{Профили классического Bluetooth (BR/EDR)}
+Профили Bluetooth представляют собой стандартизированные спецификации, определяющие поведение устройств при реализации конкретных сценариев использования. Каждый профиль описывает, какие протоколы стека должны быть задействованы, как происходит обнаружение сервисов, параметры безопасности, роли устройств (инициатор/ответчик, сервер/клиент) и формат передаваемых данных. Профили обеспечивают аппаратную и программную интероперабельность между устройствами различных производителей.
+
+В классическом Bluetooth (BR/EDR) профили строятся поверх протоколов транспортного и прикладного уровней. Для передачи потоковых данных и эмуляции последовательных портов используется протокол \textbf{RFCOMM}, работающий поверх L2CAP. Для мультимедийных задач применяются специализированные протоколы \textbf{AVDTP} (Audio/Video Distribution Transport Protocol) и \textbf{AVCTP} (Audio/Video Control Transport Protocol). Ключевым механизмом обнаружения доступных профилей является протокол \textbf{SDP (Service Discovery Protocol)}, который позволяет клиенту запросить у сервера список зарегистрированных сервисов по их уникальным идентификаторам (UUID).
+
+Основные профили классического Bluetooth, наиболее широко применяемые в современных устройствах, представлены в табл. 5.1.
+
+\begin{table}[htbp]
+\centering
+\caption{Основные профили классического Bluetooth (BR/EDR)}
+\label{tab:classical_bt_profiles}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Профиль (UUID)} & \textbf{Назначение и используемый стек протоколов} \\
+\midrule
+\textbf{GAP} (\texttt{0x1800}) & \textit{Generic Access Profile}. Базовый профиль, определяющий процедуры обнаружения устройств, установления соединения, режимы безопасности и модели взаимодействия. Использует L2CAP. \\
+\textbf{SDP} (\texttt{0x0001}) & \textit{Service Discovery Protocol}. Обеспечивает поиск и получение информации о доступных сервисах и их параметрах на удалённых устройствах. Работает поверх L2CAP. \\
+\textbf{SPP} (\texttt{0x1101}) & \textit{Serial Port Profile}. Эмулирует последовательный порт (RS-232) поверх радиоканала. Широко используется для терминального доступа, прошивки МК и передачи сырых данных. Стек: RFCOMM $\rightarrow$ L2CAP. \\
+\textbf{HFP} (\texttt{0x111F}) & \textit{Hands-Free Profile}. Профиль «громкой связи» для автомобильных гарнитур и наушников. Поддерживает голосовые вызовы, управление звонками и передачу аудио. Стек: RFCOMM (управление) + SCO/eSCO (аудио). \\
+\textbf{A2DP} (\texttt{0x110D}) & \textit{Advanced Audio Distribution Profile}. Профиль распределения стереоаудио высокого качества (музыка, подкасты). Использует асинхронный транспорт. Стек: AVDTP $\rightarrow$ L2CAP. \\
+\textbf{AVRCP} (\texttt{0x110E}) & \textit{Audio/Video Remote Control Profile}. Профиль дистанционного управления мультимедиа (play/pause, next/prev, громкость). Стек: AVCTP $\rightarrow$ L2CAP. \\
+\textbf{HID} (\texttt{0x1124}) & \textit{Human Interface Device Profile}. Профиль для клавиатур, мышей, геймпадов и сканеров. Обеспечивает низкую задержку ввода. Стек: HIDP $\rightarrow$ L2CAP. \\
+\textbf{PAN} (\texttt{0x1115/0x1116}) & \textit{Personal Area Networking}. Организация локальной сети поверх Bluetooth (режимы NAP, PANU, GN). Позволяет устройствам обмениваться IP-пакетами. Стек: BNEP $\rightarrow$ L2CAP. \\
+\textbf{FTP/OPP} (\texttt{0x1106/0x1105}) & \textit{File Transfer / Object Push Profile}. Профили передачи файлов и объектов (визитки, календари, изображения). Исторически используются в мобильных устройствах. Стек: OBEX $\rightarrow$ RFCOMM $\rightarrow$ L2CAP. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Механизм активации профиля:}
+\begin{enumerate}[nosep]
+    \item \textbf{Discovery}: Инициирующее устройство выполняет процедуру поиска (Inquiry) и получает BD\_ADDR целевого узла.
+    \item \textbf{SDP Query}: Клиент подключается к SDP-серверу удалённого устройства и запрашивает список поддерживаемых UUID.
+    \item \textbf{Channel Allocation}: На основе ответа SDP клиент определяет номер канала RFCOMM (или PSM для L2CAP-сервисов), на котором запущен целевой профиль.
+    \item \textbf{Connection}: Устанавливается логическое соединение, после чего устройства переходят в режим обмена данными согласно спецификации профиля.
+\end{enumerate}
+
+Важно отметить, что один физический Bluetooth-адаптер может одновременно поддерживать несколько активных профилей (например, HFP для звонков и A2DP для музыки), однако ресурсы контроллера и пропускная способность канала распределяются динамически, что может влиять на качество сервисов при высокой нагрузке.
+
+\subsubsection{Профиль GATT (Generic Attribute Profile)}
+Взаимодействие приложений в BLE строится поверх протокола ATT (Attribute Protocol), который абстрагирован профилем \textbf{GATT}. GATT определяет иерархическую структуру данных, которую сервер (Peripheral) предоставляет клиенту (Central).
+
+Иерархия GATT:
+\begin{enumerate}[nosep]
+    \item \textbf{Profile (Профиль)}: Коллекция сервисов, определяющая поведение устройства (например, Heart Rate Profile).
+    \item \textbf{Service (Сервис)}: Логическая группа данных. Каждый сервис имеет уникальный 16-битный или 128-битный UUID. Например, сервис «Батарея» или кастомный сервис «Управление светодиодом».
+    \item \textbf{Characteristic (Характеристика)}: Основной контейнер данных. Характеристика содержит:
+    \begin{itemize}[nosep]
+        \item \textit{UUID}: Уникальный идентификатор характеристики.
+        \item \textit{Properties}: Права доступа (READ, WRITE, NOTIFY, INDICATE).
+        \item \textit{Value}: Само значение данных (до 512 байт, обычно меньше).
+        \item \textit{Descriptors}: Метаданные о характеристике (например, Client Characteristic \\  Configuration Descriptor — CCCD, необходимый для включения уведомлений).
+    \end{itemize}
+\end{enumerate}
+
+\begin{table}[htbp]
+\caption{Основные свойства характеристик BLE}
+\centering
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Свойство} & \textbf{Описание} \\
+\midrule
+\texttt{READ} & Клиент может читать значение характеристики. \\
+\texttt{WRITE} & Клиент может записывать новое значение. \\
+\texttt{NOTIFY} & Сервер может отправлять обновления значения клиенту без подтверждения (Unacknowledged). Быстрее, но менее надежно. \\
+\texttt{INDICATE} & Аналог NOTIFY, но требует подтверждения от клиента (Acknowledged). Надежнее, но медленнее. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Процесс подключения и обмена данными}
+\begin{enumerate}
+    \item \textbf{Advertising}: Периферия рассылает рекламные пакеты, содержащие свое имя, UUID доступных сервисов и другие данные.
+    \item \textbf{Scanning}: Центральное устройство сканирует эфир и фильтрует устройства по UUID или имени.
+    \item \textbf{Connection}: Центр инициирует соединение. После этого рекламные пакеты прекращаются, и начинается обмен данными по каналами связи.
+    \item \textbf{Service Discovery}: Клиент запрашивает список сервисов и характеристик сервера (Discover Services/Characteristics).
+    \item \textbf{Data Exchange}: Клиент читает/пишет данные или подписывается на уведомления (Enable Notifications).
+\end{enumerate}
+
+\subsection{Порядок выполнения лабораторной работы}
+
+\textbf{Примечание.} Для выполнения работы требуются два модуля ESP32. Один будет выступать в роли BLE Server (Peripheral), другой — BLE Client (Central).
+
+\begin{enumerate}[nosep, leftmargin=*]
+    \item \textbf{Настройка и загрузка прошивки BLE Server (ESP32\_A):}
+    \begin{itemize}
+        \item Откройте предоставленный файл скетча \texttt{ble\_server.ino} в среде Arduino IDE.
+        \item В начале файла найдите макросы, определяющие имя устройства (\texttt{DEVICE\_NAME}) и 128-битные UUID сервиса и характеристик.
+        \item При необходимости измените имя устройства на уникальное (например, добавьте номер бригады или варианта), чтобы избежать конфликтов при сканировании в аудитории.
+        \item Убедитесь, что в системе установлена библиотека \texttt{BLEDevice.h} (входит в стандартный пакет ядра ESP32).
+        \item Подключите первый модуль ESP32 к ПК, выберите соответствующий COM-порт и модель платы, затем скомпилируйте и загрузите прошивку.
+    \end{itemize}
+
+    \item \textbf{Настройка и загрузка прошивки BLE Client (ESP32\_B):}
+    \begin{itemize}
+        \item Откройте предоставленный файл скетча \texttt{ble\_client.ino}.
+        \item Найдите в коде константу, задающую имя целевого сервера (например, \texttt{TARGET\_\allowbreak SERVER\_NAME}) или UUID сервиса для фильтрации.
+        \item Внесите изменения, указав имя или UUID, совпадающие с заданными в прошивке сервера на шаге 1.
+        \item При необходимости скорректируйте интервал отправки данных или текст тестового сообщения в соответствующих переменных.
+        \item Подключите второй модуль ESP32, выберите порт/плату и загрузите модифицированную прошивку.
+    \end{itemize}
+
+    \item \textbf{Тестирование взаимодействия:}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Откройте два окна Serial Monitor (для ESP32\_A и ESP32\_B) со скоростью 115200 бод.
+        \item Перезагрузите оба устройства (аппаратно или программно).
+        \item Убедитесь по логам, что Client выполнил сканирование, нашёл Server по имени/UUID и успешно подключился.
+        \item Проверьте, что сообщения, отправляемые Client, появляются в логе Server.
+        \item Проверьте, что Server отправляет подтверждения (ACK) или собственные уведомления, которые корректно отображаются в логе Client.
+    \end{enumerate}
+
+    \item \textbf{Сравнение с Classic Bluetooth:}
+    Оцените время установки соединения, размер служебных заголовков и энергопотребление (косвенно, по логам отладки) в BLE по сравнению с протоколом RFCOMM, изученным в Лабораторной работе 3.
+\end{enumerate}
+
+\begin{lstlisting}[language=C++, caption={Листинг 5.1. Пример кода BLE Server (ESP32)}]
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+
+// UUIDs (Generate your own for production)
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_RX   "beb5483e-36e1-4688-b7f5-ea07361b26a8" // Write
+#define CHARACTERISTIC_TX   "beb5483e-36e1-4688-b7f5-ea07361b26a9" // Read/Notify
+
+BLEServer *pServer = NULL;
+BLECharacteristic *pTxCharacteristic;
+bool deviceConnected = false;
+bool oldDeviceConnected = false;
+
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
+      BLEDevice::startAdvertising(); // Allow reconnection
+    };
+    void onDisconnect(BLEServer* pServer) {
+      deviceConnected = false;
+    }
+};
+
+class MyCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+      std::string rxValue = pCharacteristic->getValue();
+      if (rxValue.length() > 0) {
+        Serial.print("Received Value: ");
+        for (int i = 0; i < rxValue.length(); i++)
+          Serial.print(rxValue[i]);
+        Serial.println();
+
+        // Send ACK back via TX characteristic
+        String ack = "ACK: " + String(rxValue.c_str());
+        pTxCharacteristic->setValue(ack.c_str());
+        pTxCharacteristic->notify();
+      }
+    }
+};
+
+void setup() {
+  Serial.begin(115200);
+  BLEDevice::init("ESP32_BLE_Server");
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+
+  // TX Characteristic (Read + Notify)
+  pTxCharacteristic = pService->createCharacteristic(
+                                        CHARACTERISTIC_TX,
+                                        BLECharacteristic::PROPERTY_READ |
+                                        BLECharacteristic::PROPERTY_NOTIFY
+                                      );
+  pTxCharacteristic->addDescriptor(new BLE2902()); // Needed for Notify
+
+  // RX Characteristic (Write)
+  BLECharacteristic *pRxCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_RX,
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+  pRxCharacteristic->setCallbacks(new MyCallbacks());
+
+  pService->start();
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("Waiting for a client connection...");
+}
+
+void loop() {
+    // notify changed value
+    if (deviceConnected) {
+        // Logic to send data periodically can be here
+    }
+    // disconnecting
+    if (!deviceConnected && oldDeviceConnected) {
+        delay(500); // give the bluetooth stack the chance to get things ready
+        pServer->startAdvertising(); // restart advertising
+        Serial.println("Start advertising");
+        oldDeviceConnected = deviceConnected;
+    }
+    // connecting
+    if (deviceConnected && !oldDeviceConnected) {
+        // do stuff here on connecting
+        oldDeviceConnected = deviceConnected;
+    }
+}
+\end{lstlisting}
+
+\subsection{Содержание отчета}
+\begin{enumerate}[nosep, leftmargin=*]
+    \item Заголовок согласно приложению.
+    \item Цель работы.
+    \item Задание согласно варианту.
+    \item Листинги результатов работы:
+    \begin{enumerate}[label=\alph*), nosep]
+        \item листинг прошивки BLE Server с пояснением выбранных UUID и свойств характеристик;
+        \item листинг прошивки BLE Client с логикой подключения и подписки на уведомления;
+        \item логи Serial Monitor обоих устройств, демонстрирующие успешный обмен данными;
+        \item схема иерархии GATT созданного сервиса (дерево Service $\rightarrow$ Characteristics).
+    \end{enumerate}
+    \item Ответы на контрольные вопросы.
+    \item Краткие выводы по работе.
+\end{enumerate}
+
+\section*{Контрольные вопросы}
+\begin{enumerate}[nosep, leftmargin=*]
+    \item В чем заключаются основные архитектурные отличия BLE от классического Bluetooth?
+    \item Что такое GATT и какова его роль в стеке протоколов BLE?
+    \item Объясните разницу между ролями Central и Peripheral. Может ли одно устройство менять роль во времени?
+    \item Что такое UUID и почему важно использовать уникальные UUID для кастомных сервисов?
+    \item В чем разница между свойствами NOTIFY и INDICATE? Когда целесообразно использовать каждое из них?
+    \item Зачем нужен дескриптор CCCD (Client Characteristic Configuration Descriptor)?
+    \item Как происходит процесс обнаружения сервисов (Service Discovery) и почему он может занимать значительное время?
+    \item Какие ограничения накладывает BLE на размер передаваемых данных (MTU) и как их можно расширить?
+\end{enumerate}

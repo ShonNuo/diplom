@@ -1,0 +1,186 @@
+\section{Организация удаленного выполнения команд через Bluetooth-мост на базе ESP32}
+
+\subsection{Цель работы}
+Изучить принципы ретрансляции данных в сетях Bluetooth. Получить практические навыки создания многоточечных соединений с участием встроенных систем. Реализовать архитектуру «Клиент–Шлюз–Сервер», где микроконтроллер ESP32 выступает в роли прозрачного моста между двумя хостами, обеспечивая удаленное выполнение команд на целевом ПК.
+
+\subsection{Задачи}
+\begin{itemize}[nosep]
+    \item Изучить возможности одновременной работы ESP32 в режимах SPP-клиента и SPP-сервера.
+    \item Рассмотреть концепцию туннелирования данных через промежуточный узел.
+    \item Настроить два ПК: один как источник команд (Client), другой как исполнитель (Server).
+    \item Разработать прошивку для ESP32, осуществляющую двунаправленную пересылку байтов между двумя Bluetooth-каналами.
+    \item Реализовать серверную часть на Python на втором ПК, выполняющую полученные команды в оболочке ОС.
+    \item Разработать клиентский терминал на первом ПК для отправки команд и отображения результатов.
+    \item Протоколировать задержки и целостность данных при прохождении через промежуточный узел.
+\end{itemize}
+
+\subsection{Теоретический материал}
+
+\subsubsection{Архитектура «Bluetooth-мост»}
+В классической пикосети Bluetooth одно устройство является мастером, а другие — слейвами. Однако современные чипы, такие как ESP32, поддерживают роль \textbf{Dual Mode} и могут одновременно поддерживать несколько активных соединений или выступать в разных ролях для разных устройств.
+
+В данной работе реализуется топология, где ESP32:
+\begin{enumerate}[nosep]
+    \item Выступает в роли \textbf{SPP Server} для ПК-Клиента (принимает команды).
+    \item Выступает в роли \textbf{SPP Client} для ПК-Сервера (подключается к нему и передает команды).
+\end{enumerate}
+
+Таким образом, ESP32 действует как аппаратный шлюз. Данные, поступившие от Клиента по каналу A, считываются микроконтроллером и немедленно передаются в канал B (на Сервер). Ответ от Сервера по каналу B считывается и перенаправляется в канал A (Клиенту).
+
+\subsubsection{Проблемы буферизации и потокового управления}
+При ретрансляции данных через микроконтроллер критически важно учитывать разницу в скоростях обработки.
+\begin{itemize}[nosep]
+    \item \textbf{Буферизация}: Если ПК-Сервер обрабатывает команду долго (например, компиляция или тяжелый запрос к БД), ESP32 должен хранить входящие данные во внутреннем буфере или приостанавливать прием (Flow Control), чтобы избежать переполнения памяти.
+    \item {Синхронность}: В простейшей реализации используется блокирующий ввод-вывод. ESP32 ждет завершения приема пакета от Клиента, затем ждет отправки на Сервер, затем ждет ответа. Это создает суммарную задержку $T_{total} = T_{BT1} + T_{proc} + T_{BT2}$.
+\end{itemize}
+
+\subsubsection{Удаленное выполнение команд (Remote Code Execution)}
+Для выполнения команд на ПК-Сервере используется механизм вызова системной оболочки (shell). В Python за это отвечает модуль \texttt{subprocess}.
+\begin{lstlisting}[language=Python]
+import subprocess
+result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+output = result.stdout + result.stderr
+\end{lstlisting}
+\textbf{Внимание!} Открытый доступ к выполнению произвольных команд представляет угрозу безопасности. В рамках лабораторной работы предполагается использование доверенной локальной сети.
+
+\subsection{Порядок выполнения лабораторной работы}
+
+\textbf{Оборудование:}
+\begin{itemize}[nosep]
+    \item ПК 1 (Client): Отправитель команд.
+    \item ПК 2 (Server): Исполнитель команд (должен иметь Bluetooth-адаптер).
+    \item Модуль ESP32.
+\end{itemize}
+
+\begin{enumerate}[nosep, leftmargin=*]
+    \item \textbf{Подготовка ПК-Сервера (Target):}
+    \begin{itemize}
+        \item На ПК 2 создайте Python-скрипт \texttt{bt\_server.py}, который:
+        \begin{enumerate}[label=\alph*), nosep]
+            \item Запускает SPP-сервер (через \texttt{rfcomm} или прямой сокет).
+            \item Ожидает подключения от ESP32.
+            \item При получении строки выполняет её через \texttt{subprocess}.
+            \item Возвращает stdout/stderr обратно в Bluetooth-канал.
+        \end{enumerate}
+        \item Запишите MAC-адрес Bluetooth-адаптера ПК 2.
+    \end{itemize}
+
+    \item \textbf{Прошивка ESP32 (Bridge):}
+    \begin{itemize}
+        \item Используйте код из Листинга 4.1.
+        \item В коде замените \texttt{SERVER\_MAC} на MAC-адрес ПК 2.
+        \item Загрузите прошивку в ESP32.
+    \end{itemize}
+
+    \item \textbf{Настройка ПК-Клиента (Source):}
+    \begin{itemize}
+        \item Сопрягите ПК 1 с ESP32.
+        \item Привяжите ESP32 к порту: \texttt{sudo rfcomm bind /dev/rfcomm0 <MAC\_ESP32>}.
+        \item Используйте скрипт \texttt{bt\_client.py} (Листинг 4.2) для отправки команд.
+    \end{itemize}
+
+    \item \textbf{Запуск системы:}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item На ПК 2 запустите \texttt{python3 bt\_server.py}. Он перейдет в режим ожидания подключения.
+        \item Перезагрузите ESP32. Он автоматически подключится к ПК 2 и начнет ждать подключения от ПК 1.
+        \item На ПК 1 запустите \texttt{python3 bt\_client.py}.
+    \end{enumerate}
+
+    \item \textbf{Тестирование:}
+    \begin{itemize}[nosep]
+        \item Отправьте команду \texttt{uname -a}. Убедитесь, что вернулась информация о ядре ПК 2.
+        \item Отправьте команду \texttt{ls -la /tmp}. Проверьте вывод списка файлов.
+        \item Отправьте некорректную команду (например, \texttt{fake\_cmd}). Убедитесь, что вернулась ошибка (stderr).
+        \item Измерьте время отклика для простых команд (\texttt{echo test}) и сложных (\texttt{ping -c 1 google.com}).
+    \end{itemize}
+
+    \item \textbf{Анализ трафика:}
+    \begin{itemize}[nosep]
+        \item Запустите \texttt{btmon} на ПК 1 и ПК 2 одновременно.
+        \item Сравните временные метки пакетов ACL для выявления задержек на этапе ретрансляции в ESP32.
+    \end{itemize}
+\end{enumerate}
+
+\begin{lstlisting}[language=Python, caption={Листинг 4.2. Серверная часть на ПК 2 (Executor)}]
+import serial
+import subprocess
+import sys
+
+PORT = '/dev/rfcomm0' # Or direct socket if rfcomm bind is not used
+BAUDRATE = 115200
+
+def execute_command(cmd):
+    try:
+        # Execute command in bash shell
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=10 # Execution timeout 10 sec
+        )
+        output = result.stdout
+        if result.stderr:
+            output += "\n[ERR]: " + result.stderr
+        return output.strip()
+    except Exception as e:
+        return f"[EXEC ERROR]: {str(e)}"
+
+def main():
+    print(f"Listening on {PORT}...")
+    try:
+        ser = serial.Serial(PORT, BAUDRATE, timeout=None)
+        while True:
+            # Read command until newline
+            cmd_bytes = ser.readline()
+            if not cmd_bytes:
+                continue
+
+            cmd = cmd_bytes.decode('utf-8').strip()
+            print(f"Received: {cmd}")
+
+            if cmd.lower() == 'exit':
+                break
+
+            # Execute and get result
+            response = execute_command(cmd)
+
+            # Send result back
+            ser.write((response + "\n").encode('utf-8'))
+
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        if 'ser' in locals():
+            ser.close()
+
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
+
+\subsection{Содержание отчета}
+\begin{enumerate}[nosep, leftmargin=*]
+    \item Заголовок согласно приложению.
+    \item Цель работы.
+    \item Схема соединения (ПК1 $\leftrightarrow$ ESP32 $\leftrightarrow$ ПК2).
+    \item Листинги результатов работы:
+    \begin{enumerate}[label=\alph*), nosep]
+        \item код прошивки ESP32 с комментариями по логике моста;
+        \item код серверной части на Python;
+        \item лог работы клиентского терминала (примеры успешных и ошибочных команд);
+        \item таблица замеров времени отклика (RTT) для различных типов команд.
+    \end{enumerate}
+    \item Анализ задержек: оценка вклада каждого звена цепи в общую задержку.
+    \item Ответы на контрольные вопросы.
+    \item Выводы о надежности такой схемы для задач удаленного администрирования.
+\end{enumerate}
+
+\section*{Контрольные вопросы}
+\begin{enumerate}[nosep, leftmargin=*]
+    \item Какие ограничения накладывает архитектура ESP32 на количество одновременных Bluetooth-соединений?
+    \item Почему при ретрансляции данных через микроконтроллер может возникать проблема рассинхронизации потоков?
+    \item Как обеспечить безопасность при удаленном выполнении команд (Remote Code Execution)?
+    \item Что произойдет с системой, если связь между ESP32 и ПК-Сервером оборвется во время выполнения длительной команды?
+    \item Чем отличается данная схема от прямого SSH-подключения к ПК-Серверу? В каких случаях оправдано использование промежуточного Bluetooth-узла?
+    \item Как влияет размер буфера UART в ESP32 на максимальную длину передаваемой команды или ответа?
+\end{enumerate}
