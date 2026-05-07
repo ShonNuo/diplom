@@ -55,6 +55,86 @@
     \item Фиксировать параметры соединения: интервал, MTU, режим подтверждения.
 \end{itemize}
 
+\subsubsection{Структура пакетов Bluetooth}
+
+Для понимания механизмов передачи данных необходимо рассмотреть структуру пакетов на канальном уровне для каждого из режимов работы Bluetooth.
+
+\paragraph{Пакеты Basic Rate (BR).}
+Общий формат пакетов BR Bluetooth показан на рис.~\ref{fig:br_packet}. Каждый пакет состоит из трёх основных полей:
+\begin{itemize}[nosep]
+    \item \textbf{Access Code} (68 или 72 бита) — код доступа для синхронизации и идентификации пикосети;
+    \item \textbf{Header} (54 бита) — заголовок пакета, содержащий информацию об адресате, типе пакета и контроле ошибок;
+    \item \textbf{BR Payload} (0--2790 бит) — полезная нагрузка, содержащая передаваемые данные.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/br_packet.png}
+\caption{Структура пакета Bluetooth Basic Rate (BR)}
+\label{fig:br_packet}
+\end{figure}
+
+Все поля пакета BR модулируются с использованием GFSK.
+
+\paragraph{Пакеты Enhanced Data Rate (EDR).}
+Общий формат пакетов EDR Bluetooth показан на рис.~\ref{fig:edr_packet}. Структура включает:
+\begin{itemize}[nosep]
+    \item \textbf{Access Code} и \textbf{Header} — аналогичны пакетам BR и модулируются GFSK для обеспечения совместимости;
+    \item \textbf{Guard Time} (4.75--5.25~мкс) — защитный интервал для переключения между схемами модуляции;
+    \item \textbf{Sync Sequence} (11~мкс) — синхронизирующая последовательность для настройки приёмника на новую схему модуляции;
+    \item \textbf{EDR Payload} (0--2790 бит) — полезная нагрузка, модулируемая методами $\pi$/4-DQPSK или 8DPSK;
+    \item \textbf{Trailer} (2 символа) — завершающее поле для корректного завершения передачи.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/edr_packet.png}
+\caption{Структура пакета Bluetooth Enhanced Data Rate (EDR)}
+\label{fig:edr_packet}
+\end{figure}
+
+Такое разделение позволяет использовать надёжную модуляцию GFSK для служебных полей и высокоскоростную фазовую модуляцию для данных.
+
+\paragraph{Пакеты BLE незакодированный PHY (LE 1M и LE 2M).}
+Спецификация ядра Bluetooth задаёт два физических уровня для незакодированного PHY: LE 1M (1~Мсимв/с) и LE 2M (2~Мсимв/с). Структура пакета показана на рис.~\ref{fig:ble_uncoded}:
+\begin{itemize}[nosep]
+    \item \textbf{Preamble} (1 или 2 октета) — преамбула для синхронизации по частоте;
+    \item \textbf{Access Address} (4 октета) — адрес доступа, идентифицирующий соединение или рекламный канал;
+    \item \textbf{Protocol Data Unit (PDU)} (2--258 октетов) — блок данных протокола, содержащий заголовок и полезную нагрузку;
+    \item \textbf{Cyclic Redundancy Check (CRC)} (3 октета) — контрольная сумма для обнаружения ошибок;
+    \item \textbf{Constant Tone Extension} (16--160~мкс, опционально) — расширение с постоянной тональностью для определения направления сигнала (AoA/AoD).
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/ble_uncoded_packet.png}
+\caption{Структура пакета BLE незакодированный PHY (LE 1M/LE 2M)}
+\label{fig:ble_uncoded}
+\end{figure}
+
+\paragraph{Пакеты BLE закодированный PHY (Coded PHY).}
+Закодированный PHY реализуется для пакетов BLE на всех физических каналах и использует избыточное кодирование FEC (Forward Error Correction) для увеличения дальности связи. Структура пакета показана на рис.~\ref{fig:ble_coded}:
+\begin{itemize}[nosep]
+    \item \textbf{Preamble} (80~мкс) — преамбула;
+    \item \textbf{Access Address} (256~мкс) — адрес доступа;
+    \item \textbf{Coding Indicator (CI)} (16~мкс) — индикатор кодирования, указывающий коэффициент расширения (S=2 или S=8);
+    \item \textbf{TERM1} (24~мкс) — первый терминальный блок FEC;
+    \item \textbf{PDU} ($N \times 8 \times S$~мкс) — блок данных протокола, где $S$ — коэффициент кодирования;
+    \item \textbf{CRC} ($24 \times S$~мкс) — контрольная сумма с кодированием;
+    \item \textbf{TERM2} ($3 \times S$~мкс) — второй терминальный блок FEC.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{figures/ble_coded_packet.png}
+\caption{Структура пакета BLE закодированный PHY (Coded PHY)}
+\label{fig:ble_coded}
+\end{figure}
+
+Пакет разделён на два FEC-блока: FEC Block 1 включает CI и TERM1, FEC Block 2 включает PDU, CRC и TERM2. При S=8 каждый бит данных повторяется 8 раз, что значительно повышает помехоустойчивость ценой снижения скорости.
+
+\subsubsection{Влияние протоколов верхних уровней на пропускную способность}
+
 \subsection{Порядок выполнения лабораторной работы}
 
 \textbf{Оборудование:} два модуля ESP32, ПК с установленной Arduino IDE и драйверами, два окна терминала для мониторинга последовательного порта.
@@ -66,61 +146,83 @@
 \end{itemize}
 
 \begin{enumerate}[nosep, leftmargin=*]
-    \item \textbf{Измерение скорости для Classic Bluetooth (BR/EDR):}
+    \item \textbf{Измерение скорости для Classic Bluetooth (BR/EDR) при различных размерах пакета:}
     \begin{enumerate}[label=\alph*), nosep]
-        \item Загрузите прошивку \texttt{ESP32\_BT\_TX.ino} и \texttt{ESP32\_BT\_RX.ino}.
-        \item В скетче убедитесь, что макрос \texttt{address[]} содержит MAC-адрес модуля с прошивкой \texttt{ESP32\_BT\_RX.ino}.
-        \item Откройте два окна \texttt{Serial Monitor} (115200 бод): для TX и RX.
-        \item Перезагрузите оба устройства. Дождитесь сообщения \texttt{[TX] Connected! Starting test (10 sec)...}.
-        \item По окончании теста зафиксируйте вывод в окне передатчика вида:
+        \item Откройте скетч \texttt{ESP32\_BT\_TX.ino} и найдите параметр размера отправляемого блока:
         \begin{lstlisting}
-[TX] 2048000 bytes | 10000 ms | 1638.4 kbps | 204.8 KB/s
+const size_t CHUNK = 2048;
         \end{lstlisting}
-        \item Повторите измерение 3 раза, вычислите среднее значение.
+        \item Последовательно установите значения \texttt{CHUNK}: 512, 1024 и 2048 байт. Для каждого значения выполните следующие действия:
+        \begin{enumerate}[label=\roman*), nosep]
+            \item Скомпилируйте и загрузите прошивку в модуль-передатчик (приёмник \texttt{ESP32\_BT\_RX.ino} перепрошивать не требуется).
+            \item Откройте два окна \texttt{Serial Monitor} (115200 бод) для TX и RX.
+            \item Перезагрузите оба устройства. Дождитесь сообщения \texttt{[TX] Connected! Starting test (10 sec)...}.
+            \item По окончании теста зафиксируйте вывод передатчика вида:
+            \begin{lstlisting}
+[TX] 2048000 bytes | 10000 ms | 1638.4 kbps | 204.8 KB/s
+            \end{lstlisting}
+            \item Повторите измерение 3 раза для каждого размера пакета, вычислите среднее значение скорости.
+        \end{enumerate}
     \end{enumerate}
 
-    \item \textbf{Измерение скорости для Bluetooth Low Energy:}
+    \item \textbf{Измерение скорости для Bluetooth Low Energy при различных значениях MTU:}
     \begin{enumerate}[label=\alph*), nosep]
-        \item Загрузите прошивку \texttt{ESP32\_BLE\_TX.ino} в модуль-передатчик.
-        \item Убедитесь, что \texttt{serviceUUID} и \texttt{charUUID} совпадают в прошивках \texttt{ESP32\_BLE\_TX.ino} и \texttt{ESP32\_BLE\_RX.ino}.
-        \item Откройте \texttt{Serial Monitor} для обоих устройств.
-        \item Перезагрузите устройства. Дождитесь завершения 10-секундного теста.
-        \item Зафиксируйте вывод вида:
+        \item Откройте скетч \texttt{ESP32\_BLE\_TX.ino} и найдите строку установки максимального размера атрибута:
         \begin{lstlisting}
-[RX] Test complete. Received: 122880 bytes. Duration: 10.02 sec. Speed: 12.23 KB/s
+pClient->setMTU(517);
         \end{lstlisting}
-        \item Повторите измерение 3 раза, вычислите среднее значение.
+        \item Последовательно установите значения MTU: 23 (стандартное), 128, 247 и 517 байт. Для каждого значения выполните:
+        \begin{enumerate}[label=\roman*), nosep]
+            \item Скомпилируйте и загрузите прошивку в модуль-передатчик (приёмник \texttt{ESP32\_BLE\_RX.ino} остаётся без изменений).
+            \item Откройте \texttt{Serial Monitor} для обоих устройств.
+            \item Перезагрузите устройства. Дождитесь завершения 10-секундного теста.
+            \item Зафиксируйте вывод приёмника вида:
+            \begin{lstlisting}
+[RX] Test complete. Received: 122880 bytes. Duration: 10.02 sec. Speed: 12.23 KB/s
+            \end{lstlisting}
+            \item Повторите измерение 3 раза для каждого MTU, вычислите среднее значение.
+        \end{enumerate}
     \end{enumerate}
 
     \item \textbf{Сравнительный анализ:}
     \begin{itemize}[nosep]
-        \item Постройте таблицу результатов (Табл.~\ref{tab:results}) с указанием минимального, максимального и среднего значения скорости для каждого режима.
-        \item Рассчитайте отношение пропускной способности EDR к BR и BLE к BR в процентах.
-        \item Проанализируйте, какие факторы (размер пакета, режим подтверждения, интервал соединения) оказали наибольшее влияние на результат.
-    \end{itemize}
-
-    \item \textbf{Опционально: влияние размера пакета на скорость}
-    \begin{itemize}[nosep]
-        \item В прошивке \texttt{ESP32\_BLE\_TX.ino} измените размер массива \texttt{payload} с 490 байт на 20, 100 и 247 байт.
-        \item Проведите измерения для каждого размера, постройте график зависимости скорости от размера пакета.
-        \item Объясните наблюдаемую зависимость, опираясь на теорию накладных расходов протокола ATT.
+        \item Заполните таблицы результатов.
+        \item Постройте графики зависимости скорости передачи данных от размера полезной нагрузки (\texttt{CHUNK}) для BR/EDR и от согласованного MTU для BLE.
+        \item Проанализируйте полученные данные: как изменение размера пакета влияет на эффективность канала? С какими ограничениями протоколов RFCOMM и ATT связаны наблюдаемые пределы роста скорости? Оцените долю служебных заголовков в общем трафике.
     \end{itemize}
 \end{enumerate}
 
 \begin{table}[htbp]
 \centering
-\caption{Результаты измерений пропускной способности}
-\label{tab:results}
+\caption{Результаты измерений пропускной способности Classic Bluetooth (BR/EDR)}
+\label{tab:bt_results}
 \begin{tabularx}{\textwidth}{lXXXX}
 \toprule
-\textbf{Режим} & \textbf{Мин. скорость} & \textbf{Макс. скорость} & \textbf{Средняя скорость} & \textbf{Отклонение} \\
+\textbf{CHUNK (байт)} & \textbf{Мин. скорость} & \textbf{Макс. скорость} & \textbf{Средняя скорость} & \textbf{Отклонение} \\
 & \textbf{(кбит/с)} & \textbf{(кбит/с)} & \textbf{(кбит/с)} & \textbf{(\%)} \\
 \midrule
-Classic BR/EDR & & & & \\
-BLE (1M PHY, MTU=23) & & & & \\
-BLE (1M PHY, MTU=247)* & & & & \\
+512 & & & & \\
+1024 & & & & \\
+2048 & & & & \\
 \bottomrule
-\multicolumn{5}{l}{\small * — при поддержке согласования расширенного MTU} \\
+\end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Результаты измерений пропускной способности Bluetooth Low Energy}
+\label{tab:ble_results}
+\begin{tabularx}{\textwidth}{lXXXX}
+\toprule
+\textbf{MTU (байт)} & \textbf{Мин. скорость} & \textbf{Макс. скорость} & \textbf{Средняя скорость} & \textbf{Отклонение} \\
+& \textbf{(кбит/с)} & \textbf{(кбит/с)} & \textbf{(кбит/с)} & \textbf{(\%)} \\
+\midrule
+23 (default) & & & & \\
+128 & & & & \\
+247 & & & & \\
+517 & & & & \\
+\bottomrule
+\multicolumn{5}{l}{\small * --- максимальное значение MTU, поддерживаемое данной реализацией ESP32} \\
 \end{tabularx}
 \end{table}
 
@@ -128,13 +230,11 @@ BLE (1M PHY, MTU=247)* & & & & \\
 \begin{enumerate}[nosep, leftmargin=*]
     \item Заголовок согласно приложению.
     \item Цель работы.
-    \item Задание согласно варианту.
     \item Краткое описание использованных прошивок (ссылки на файлы \texttt{ESP32\_BT\_TX.ino}, \texttt{ESP32\_BT\_RX.ino}, \texttt{ESP32\_BLE\_TX.ino}, \texttt{ESP32\_BLE\_RX.ino}).
-    \item Таблица результатов измерений (Табл.~\ref{tab:results}).
-    \item Графики сравнения пропускной способности (столбчатая диаграмма или линейный график).
+    \item Таблица результатов измерений.
+    \item Графики сравнения пропускной способности.
     \item Анализ влияния параметров (размер пакета, режим подтверждения) на скорость.
     \item Ответы на контрольные вопросы.
-    \item Выводы о применимости BR/EDR/BLE для различных сценариев (передача файлов, телеметрия, аудио).
 \end{enumerate}
 
 \textbf{Примечание.} При оформлении отчёта допускается приводить только ключевые фрагменты вывода \texttt{Serial Monitor}. Полные логи можно приложить отдельным файлом.

@@ -1,0 +1,266 @@
+\section{Анализ трафика Bluetooth с использованием Wireshark}
+
+\subsection{Цель работы}
+Получить практические навыки захвата и анализа сетевого трафика Bluetooth с использованием программного анализатора протоколов Wireshark. Изучить структуру пакетов Bluetooth, процедуры обнаружения устройств, сопряжения и обмена данными.
+
+\subsection{Задачи}
+\begin{itemize}[nosep]
+    \item Изучить принципы работы анализаторов протоколов и возможности Wireshark для анализа Bluetooth трафика.
+    \item Настроить систему для захвата Bluetooth пакетов.
+    \item Захватить трафик процедур обнаружения (Inquiry), подключения (Connection) и сопряжения (Pairing) устройств.
+    \item Проанализировать структуру захваченных пакетов: заголовки, типы пакетов, поля управления.
+    \item Исследовать трафик различных профилей Bluetooth (SPP, A2DP, HID).
+    \item Выполнить декодирование и интерпретацию содержимого пакетов.
+\end{itemize}
+
+\subsection{Теоретический материал}
+
+\subsubsection{Анализаторы протоколов}
+Анализатор протоколов (сниффер) — это программное или аппаратное средство, предназначенное для перехвата, декодирования и анализа сетевого трафика. Wireshark является одним из наиболее популярных открытых анализаторов протоколов, поддерживающим сотни протоколов, включая Bluetooth.
+
+Основные возможности Wireshark:
+\begin{itemize}[nosep]
+    \item Захват пакетов в реальном времени с различных интерфейсов;
+    \item Детальное декодирование протоколов с иерархическим отображением полей;
+    \item Фильтрация трафика по различным критериям;
+    \item Статистический анализ трафика;
+    \item Экспорт данных в различные форматы.
+\end{itemize}
+
+\subsubsection{Захват Bluetooth трафика}
+Для захвата Bluetooth трафика в Wireshark требуется:
+\begin{enumerate}[nosep]
+    \item \textbf{Адаптер Bluetooth} с поддержкой режима promiscuous mode (смешанного режима);
+    \item \textbf{Драйверы}, поддерживающие захват пакетов (в Linux — btmon, в Windows — USBPcap для USB-адаптеров);
+    \item \textbf{Права суперпользователя} для доступа к низкоуровневым интерфейсам.
+\end{enumerate}
+
+Wireshark может захватывать Bluetooth трафик несколькими способами:
+\begin{itemize}[nosep]
+    \item \textbf{Linux Sockets}: через интерфейс Bluetooth в Linux;
+    \item \textbf{USBPcap}: для захвата USB-трафика Bluetooth-адаптера;
+    \item \textbf{PCAP-файлы}: анализ предварительно захваченного трафика;
+    \item \textbf{Специализированные снифферы}: использование внешних устройств (Ubertooth, Ellisys).
+\end{itemize}
+
+\subsubsection{Структура пакетов Bluetooth}
+Пакеты Bluetooth состоят из нескольких уровней:
+
+\textbf{1. Физический уровень (Physical Layer):}
+\begin{itemize}[nosep]
+    \item Access Code (68–72 бита) — код доступа;
+    \item Header (54 бита) — заголовок пакета;
+    \item Payload (0–2745 бит) — полезная нагрузка.
+\end{itemize}
+
+\textbf{2. Канальный уровень (Link Layer):}
+Управляет установлением соединений, повторной передачей и контролем потока.
+
+\textbf{3. Протоколы верхних уровней:}
+\begin{itemize}[nosep]
+    \item \textbf{L2CAP} (Logical Link Control and Adaptation Protocol) — адаптация пакетов;
+    \item \textbf{RFCOMM} — эмуляция последовательных портов;
+    \item \textbf{SDP} (Service Discovery Protocol) — обнаружение сервисов;
+    \item \textbf{ATT/GATT} — для Bluetooth Low Energy;
+    \item \textbf{Профили} (A2DP, HID, HFP, SPP и др.).
+\end{itemize}
+
+\subsubsection{Основные процедуры Bluetooth}
+
+\textbf{Inquiry (Обнаружение устройств):}
+Процедура поиска устройств в радиусе действия. Инициатор рассылает ID-пакеты, устройства в режиме обнаружения отвечают FHS-пакетами со своей информацией (BD\_ADDR, класс устройства, часы).
+
+\textbf{Paging (Установление соединения):}
+Процедура подключения к конкретному устройству по известному BD\_ADDR. Включает синхронизацию по часам и частоте.
+
+\textbf{Pairing (Сопряжение):}
+Процесс обмена ключами безопасности для аутентификации и шифрования. Может включать ввод PIN-кода или использование SSP (Secure Simple Pairing).
+
+\textbf{Service Discovery (Обнаружение сервисов):}
+Запрос информации о доступных сервисах и профилях на удаленном устройстве через протокол SDP.
+
+\subsection{Порядок выполнения лабораторной работы}
+
+\textbf{Примечание.} Для выполнения работы требуется ПК с Bluetooth-адаптером, установленным Wireshark и правами суперпользователя.
+
+\begin{enumerate}[nosep, leftmargin=*]
+    \item \textbf{Подготовка среды захвата:}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Установите Wireshark (если не установлен):
+        \begin{lstlisting}
+user@host:~$ sudo apt install wireshark
+        \end{lstlisting}
+        \item Добавьте пользователя в группу wireshark для захвата пакетов без root:
+        \begin{lstlisting}
+user@host:~$ sudo usermod -a -G wireshark $USER
+        \end{lstlisting}
+        \item Проверьте доступные интерфейсы для захвата:
+        \begin{lstlisting}
+user@host:~$ wireshark -D
+        \end{lstlisting}
+        Найдите Bluetooth-интерфейс (обычно \texttt{bluetooth0} или \texttt{btmon}).
+    \end{enumerate}
+
+    \item \textbf{Захват трафика процедуры обнаружения (Inquiry):}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Запустите Wireshark от имени суперпользователя:
+        \begin{lstlisting}
+user@host:~$ sudo wireshark
+        \end{lstlisting}
+        \item Выберите Bluetooth-интерфейс для захвата и начните захват.
+        \item В другом терминале запустите сканирование Bluetooth-устройств:
+        \begin{lstlisting}
+user@host:~$ sudo bluetoothctl scan on
+        \end{lstlisting}
+        \item Подождите 10–15 секунд, пока будут найдены устройства.
+        \item Остановите захват в Wireshark.
+        \item Сохраните файл захвата как \texttt{inquiry.pcapng}.
+    \end{enumerate}
+
+    \item \textbf{Анализ пакетов Inquiry:}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Примените фильтры для детального анализа процедуры обнаружения устройств. В строке фильтра Wireshark используйте следующие выражения:
+        \begin{itemize}[nosep]
+            \item \texttt{bthci\_evt.code == 0x01} — \textbf{Inquiry Complete}. Фиксирует событие завершения процедуры поиска контроллером.
+            \item \texttt{bthci\_evt.code == 0x02} — \textbf{Inquiry Result}. Основной фильтр: отображает пакеты с базовой информацией о найденных классических устройствах.
+            \item \texttt{bthci\_evt.code == 0x2f} — \textbf{Extended Inquiry Result}. Отображает пакеты с расширенными данными (полное имя устройства EIR, класс устройства, RSSI).
+        \end{itemize}
+        \item Найдите пакеты \texttt{Extended Inquiry Result} и проанализируйте их поля в нижней панели декодирования:
+        \begin{itemize}[nosep]
+            \item BD\_ADDR обнаруженных устройств;
+            \item Class of Device (CoD);
+            \item RSSI (уровень сигнала).
+        \end{itemize}
+        \item Сделайте скриншот с развёрнутой структурой пакета \texttt{Extended Inquiry Result}, обратив внимание на поле \textit{EIR Data} с именем устройства.
+        \item Заполните таблицу найденных устройств (Табл.~\ref{tab:bt_devices}).
+    \end{enumerate}
+
+    \item \textbf{Захват трафика сопряжения (Pairing):}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Начните новый захват в Wireshark.
+        \item Выполните сопряжение с Bluetooth-устройством (наушники, телефон и т.д.):
+        \begin{lstlisting}
+user@host:~$ bluetoothctl
+[bluetooth]# pair XX:XX:XX:XX:XX:XX
+        \end{lstlisting}
+        \item Подтвердите сопряжение (введите PIN-код, если требуется).
+        \item После успешного сопряжения остановите захват.
+        \item Сохраните файл как \texttt{pairing.pcapng}.
+    \end{enumerate}
+
+    \item \textbf{Анализ процедуры Pairing:}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Примените фильтр для HCI-событий сопряжения:
+        \begin{lstlisting}
+bthci_cmd.opcode == 0x0405 || bthci_evt.event_code == 0x06
+        \end{lstlisting}
+        \item Найдите и проанализируйте пакеты:
+        \begin{itemize}[nosep]
+            \item \texttt{Link Key Request};
+            \item \texttt{IO Capability Request/Response};
+            \item \texttt{User Confirmation Request} (если используется);
+            \item \texttt{Link Key Notification}.
+        \end{itemize}
+        \item Определите метод сопряжения (Just Works, Passkey Entry, Numeric Comparison).
+        \item Сделайте скриншоты ключевых этапов сопряжения.
+    \end{enumerate}
+
+    \item \textbf{Захват трафика передачи данных:}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Начните новый захват.
+        \item Отправьте файл на сопряженное устройство или получите файл с него:
+        \begin{lstlisting}
+user@host:~$ bluetoothctl connect XX:XX:XX:XX:XX:XX
+user@host:~$ obexctl
+        \end{lstlisting}
+        \item Альтернативно: подключите Bluetooth-наушники и воспроизведите аудио (A2DP трафик).
+        \item Остановите захват после передачи данных.
+        \item Сохраните как \texttt{data\_transfer.pcapng}.
+    \end{enumerate}
+
+    \item \textbf{Анализ трафика передачи данных:}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Примените фильтр для L2CAP-пакетов:
+        \begin{lstlisting}
+btl2cap
+        \end{lstlisting}
+        \item Найдите пакеты RFCOMM (если использовался SPP):
+        \begin{lstlisting}
+btrfcomm
+        \end{lstlisting}
+        \item Проанализируйте:
+        \begin{itemize}[nosep]
+            \item Размер пакетов;
+            \item Интервалы между пакетами;
+            \item Количество повторных передач (retransmissions).
+        \end{itemize}
+        \item Для A2DP-трафика найдите пакеты с аудио-данными.
+        \item Сделайте скриншот статистики потока (Statistics → Conversations → Bluetooth).
+    \end{enumerate}
+
+    \item \textbf{Статистический анализ:}
+    \begin{enumerate}[label=\alph*), nosep]
+        \item Откройте статистику захваченного трафика:
+        \begin{itemize}[nosep]
+            \item Statistics → Protocol Hierarchy;
+            \item Statistics → Conversations → Bluetooth;
+            \item Statistics → IO Graphs.
+        \end{itemize}
+        \item Постройте график интенсивности трафика во времени.
+        \item Определите:
+        \begin{itemize}[nosep]
+            \item Общее количество пакетов;
+            \item Количество байт;
+            \item Среднюю скорость передачи;
+            \item Доминирующие протоколы.
+        \end{itemize}
+    \end{enumerate}
+\end{enumerate}
+
+\begin{table}[htbp]
+\centering
+\caption{Обнаруженные Bluetooth-устройства}
+\label{tab:bt_devices}
+\begin{tabularx}{\textwidth}{lXXXX}
+\toprule
+\textbf{№} & \textbf{BD\_ADDR} & \textbf{Имя устройства} & \textbf{Class of Device} & \textbf{RSSI (дБм)} \\
+\midrule
+1 & & & & \\
+2 & & & & \\
+3 & & & & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Содержание отчета}
+\begin{enumerate}[nosep, leftmargin=*]
+    \item Заголовок согласно приложению.
+    \item Цель работы.
+    \item Краткое описание использованного оборудования (модель Bluetooth-адаптера).
+    \item Результаты работы:
+    \begin{enumerate}[label=\alph*), nosep]
+        \item таблица обнаруженных устройств (Табл.~\ref{tab:bt_devices});
+        \item скриншоты Wireshark с анализом Inquiry-пакетов;
+        \item скриншоты этапов процедуры Pairing с пояснениями;
+        \item скриншоты трафика передачи данных с расшифровкой полей;
+        \item статистика трафика (Protocol Hierarchy, Conversations);
+        \item график интенсивности трафика (IO Graph).
+    \end{enumerate}
+    \item Выводы по работе: какие протоколы и процедуры были проанализированы, какие особенности трафика выявлены.
+\end{enumerate}
+
+\textbf{Примечание.} Все скриншоты должны быть читаемыми, с выделенными ключевыми полями пакетов. При необходимости используйте зум в Wireshark.
+
+\section*{Контрольные вопросы}
+\begin{enumerate}[nosep, leftmargin=*]
+    \item Какие уров OSI модели задействованы в стеке протоколов Bluetooth?
+    \item В чем разница между процедурами Inquiry и Paging?
+    \item Какие методы сопряжения (Pairing) существуют в Bluetooth? Какой из них наиболее безопасен?
+    \item Что такое BD\_ADDR и какова его структура?
+    \item Какую функцию выполняет протокол L2CAP?
+    \item Чем отличается трафик SPP от трафика A2DP?
+    \item Какие фильтры Wireshark можно использовать для анализа Bluetooth-трафика?
+    \item Что такое Class of Device (CoD) и как он кодируется?
+    \item Как в Wireshark определить, используется ли шифрование в Bluetooth-соединении?
+    \item Какие проблемы могут возникнуть при захвате Bluetooth-трафика и как их решить?
+\end{enumerate}
