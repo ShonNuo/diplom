@@ -53,7 +53,7 @@
 
 \titleformat{\section}
   {\centering\normalfont\normalsize\bfseries}
-  {Лабораторная работа \thesection}{1em}{}
+  {\thesection}{1em}{}
 
 \titleformat{\subsection}
   {\centering\normalfont\normalsize\bfseries}
@@ -112,3 +112,13 @@
     showspaces=false,
     showstringspaces=false
 }
+
+% Автоматическое ограничение размеров изображений
+\setkeys{Gin}{
+    width=1\textwidth,
+    height=0.45\textheight,
+    keepaspectratio
+}
+
+% Настройка подписей
+\usepackage[labelsep=endash]{caption}
