@@ -1,0 +1,41 @@
+\xpg@aux {}{russian}
+\contentsline {section}{\numberline {1}ТЕОРЕТИЧЕСКИЕ ОСНОВЫ ТЕХНОЛОГИИ BLUETOOTH И ТРЕБОВАНИЯ К СТЕНДУ}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}История развития и архитектурные особенности Bluetooth (BR/EDR и BLE)}{3}{subsection.1.1}%
+\contentsline {subsubsection}{\numberline {1.1.1}Классический Bluetooth (BR/EDR)}{4}{subsubsection.1.1.1}%
+\contentsline {subsubsection}{\numberline {1.1.2}Профили классического Bluetooth (BR/EDR)}{6}{subsubsection.1.1.2}%
+\contentsline {subsubsection}{\numberline {1.1.3}Bluetooth Low Energy (BLE)}{7}{subsubsection.1.1.3}%
+\contentsline {subsubsection}{\numberline {1.1.4}Профили и службы Bluetooth Low Energy (BLE)}{8}{subsubsection.1.1.4}%
+\contentsline {subsubsection}{\numberline {1.1.5}Сравнительный анализ BR/EDR и BLE}{9}{subsubsection.1.1.5}%
+\contentsline {subsection}{\numberline {1.2}Топологии Bluetooth-сетей: точка--точка, пикосеть, скаттернет}{12}{subsection.1.2}%
+\contentsline {subsubsection}{\numberline {1.2.1}Соединение точка--точка}{12}{subsubsection.1.2.1}%
+\contentsline {subsubsection}{\numberline {1.2.2}Пикосеть}{13}{subsubsection.1.2.2}%
+\contentsline {subsubsection}{\numberline {1.2.3}Организация доступа к среде}{13}{subsubsection.1.2.3}%
+\contentsline {subsubsection}{\numberline {1.2.4}Скаттернет}{14}{subsubsection.1.2.4}%
+\contentsline {subsubsection}{\numberline {1.2.5}Широковещательные соединения и BLE Mesh}{16}{subsubsection.1.2.5}%
+\contentsline {subsection}{\numberline {1.3}Анализ областей применения Bluetooth в современных беспроводных сетях}{18}{subsection.1.3}%
+\contentsline {subsubsection}{\numberline {1.3.1}Персональные сети и периферийные устройства}{18}{subsubsection.1.3.1}%
+\contentsline {subsubsection}{\numberline {1.3.2}Аудио- и мультимедийные системы}{18}{subsubsection.1.3.2}%
+\contentsline {subsubsection}{\numberline {1.3.3}Интернет вещей и носимые устройства}{18}{subsubsection.1.3.3}%
+\contentsline {subsubsection}{\numberline {1.3.4}Промышленность и системы автоматизации}{19}{subsubsection.1.3.4}%
+\contentsline {subsubsection}{\numberline {1.3.5}Транспортные системы}{19}{subsubsection.1.3.5}%
+\contentsline {subsubsection}{\numberline {1.3.6}Современные тенденции развития}{19}{subsubsection.1.3.6}%
+\contentsline {subsubsection}{\numberline {1.3.7}Связь с лабораторным стендом}{19}{subsubsection.1.3.7}%
+\contentsline {subsection}{\numberline {1.4}Формирование технических требований к учебно-лабораторному стенду}{20}{subsection.1.4}%
+\contentsline {subsubsection}{\numberline {1.4.1}Функциональные требования}{20}{subsubsection.1.4.1}%
+\contentsline {subsubsection}{\numberline {1.4.2}Аппаратные требования}{20}{subsubsection.1.4.2}%
+\contentsline {subsubsection}{\numberline {1.4.3}Программные требования}{21}{subsubsection.1.4.3}%
+\contentsline {subsubsection}{\numberline {1.4.4}Эксплуатационные требования}{21}{subsubsection.1.4.4}%
+\contentsline {section}{\numberline {2}ПРОЕКТ УЧЕБНО-ЛАБОРАТОРНОГО СТЕНДА}{23}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Общая структура стенда и принципы взаимодействия узлов}{23}{subsection.2.1}%
+\contentsline {subsubsection}{\numberline {2.1.1}Типы узлов стенда}{23}{subsubsection.2.1.1}%
+\contentsline {subsubsection}{\numberline {2.1.2}Принципы взаимодействия узлов}{24}{subsubsection.2.1.2}%
+\contentsline {subsubsection}{\numberline {2.1.3}Программная организация взаимодействия}{24}{subsubsection.2.1.3}%
+\contentsline {subsubsection}{\numberline {2.1.4}Преимущества архитектуры стенда}{25}{subsubsection.2.1.4}%
+\contentsline {subsection}{\numberline {2.2}Обоснование выбора аппаратной платформы: модули ESP32}{25}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Технические характеристики и архитектура}{25}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Интеграция стека протоколов и программная поддержка}{26}{subsubsection.2.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.3}Энергоэффективность и автономность}{27}{subsubsection.2.2.3}%
+\contentsline {subsubsection}{\numberline {2.2.4}Сравнительный анализ альтернатив}{27}{subsubsection.2.2.4}%
+\contentsline {subsection}{\numberline {2.3}Организация узлов на базе ПК с USB Bluetooth-адаптерами и ESP32}{28}{subsection.2.3}%
+\contentsline {subsubsection}{\numberline {2.3.1}Узлы на базе ПК с USB Bluetooth-адаптерами}{28}{subsubsection.2.3.1}%
+\contentsline {subsubsection}{\numberline {2.3.2}Узлы на базе микроконтроллеров ESP32}{29}{subsubsection.2.3.2}%
