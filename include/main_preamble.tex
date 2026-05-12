@@ -54,7 +54,6 @@
 ]{biblatex}
 \addbibresource{include/references.bib}
 
-
 \onehalfspacing % Полуторный интервал для основного текста
 \setlength{\parindent}{1.25cm} % Абзацный отступ по ГОСТ
 
@@ -136,3 +135,17 @@
 
 % Настройка подписей
 \usepackage[labelsep=endash]{caption}
+
+% -------------------- ПРИЛОЖЕНИЯ --------------------
+\newcounter{appendixctr}
+
+\newcommand{\appendixsection}[1]{
+  \clearpage
+  \refstepcounter{appendixctr}
+  \section*{ПРИЛОЖЕНИЕ \Asbuk{appendixctr}}
+  \addcontentsline{toc}{section}{Приложение \Asbuk{appendixctr}}
+  
+  \begin{center}
+    #1
+  \end{center}
+}

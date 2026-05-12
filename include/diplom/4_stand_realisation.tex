@@ -1,1 +1,223 @@
 \section{РЕАЛИЗАЦИЯ СТЕНДА}
+
+\subsection{Разработка прошивок для микроконтроллеров ESP32}
+Для реализации учебного лабораторного стенда были разработаны специализированные прошивки для микроконтроллеров ESP32, поддерживающих как классический Bluetooth (BR/EDR), так и Bluetooth Low Energy (BLE). Прошивки обеспечивают возможность проведения измерений пропускной способности канала связи и изучения протоколов различных уровней стека Bluetooth.
+
+\subsubsection{Прошивки для Classic Bluetooth (BR/EDR)}
+
+Для исследования характеристик классического Bluetooth разработаны две взаимодополняющие прошивки: передатчик (\texttt{ESP32\_BT\_TX.ino}) и приемник (\texttt{ESP32\_BT\_RX.ino}).
+
+\textbf{Прошивка передатчика} реализует следующие функции:
+\begin{itemize}
+    \item Инициализация Bluetooth-адаптера в режиме master;
+    \item Автоматическое подключение к приемнику по известному MAC-адресу;
+    \item Генерация тестового трафика фиксированного размера в течение заданного интервала времени (по умолчанию 10 секунд);
+    \item Использование оптимизированной компиляции (\texttt{\#pragma GCC optimize("O3")}) для минимизации накладных расходов;
+    \item Расчет и вывод статистики передачи: количество отправленных байт, длительность, скорость в кбит/с и КБайт/с.
+\end{itemize}
+
+Ключевой особенностью прошивки является использование постоянного размера пакета (\texttt{CHUNK}), который может варьироваться от 512 до 2048 байт для исследования влияния размера полезной нагрузки на пропускную способность.
+
+\textbf{Прошивка приемника} выполняет:
+\begin{itemize}
+    \item Инициализацию Bluetooth в режиме slave с заданным именем устройства;
+    \item Ожидание входящих подключений;
+    \item Буферизацию принимаемых данных с использованием кольцевого буфера размером 2048 байт;
+    \item Детектирование окончания передачи по таймауту (1500 мс без данных);
+    \item Расчет статистики приема аналогично передатчику.
+\end{itemize}
+
+Обе прошивки используют аппаратное ускорение CRC и оптимизированные драйверы Bluetooth, что обеспечивает минимальные задержки обработки.
+
+\subsubsection{Прошивки для Bluetooth Low Energy}
+
+Для исследования BLE разработаны прошивки \texttt{ESP32\_BLE\_TX.ino} и \texttt{ESP32\_BLE\_RX.ino}, использующие архитектуру GATT (Generic Attribute Profile).
+
+\textbf{Прошивка BLE-передатчика} характеризуется:
+\begin{itemize}
+    \item Реализацией роли BLE-клиента (Central);
+    \item Подключением к серверу по UUID сервиса и характеристики;
+    \item Настройкой MTU (Maximum Transmission Unit) до 517 байт для увеличения пропускной способности;
+    \item Использованием режима записи без подтверждения (\texttt{writeValue(..., true)}) для максимизации throughput;
+    \item Генерацией полезной нагрузки размером 490 байт (оптимальный размер для BLE с учетом накладных расходов).
+\end{itemize}
+
+\textbf{Прошивка BLE-приемника} реализует:
+\begin{itemize}
+    \item Роль BLE-сервера (Peripheral) с рекламой сервиса;
+    \item Создание характеристики с свойством \texttt{PROPERTY\_WRITE\_NR} (Write No Response);
+    \item Callback-обработку входящих данных с точной временной меткой;
+    \item Автоматический расчет скорости передачи по завершении сеанса.
+\end{itemize}
+
+Особенностью BLE-прошивок является использование асинхронной архитектуры и событийной модели, что соответствует специфике энергоэффективных протоколов.
+
+\subsection{Анализ трафика Bluetooth}
+
+Для глубокого понимания работы протоколов Bluetooth стенд поддерживает детальный анализ сетевого трафика с использованием профессиональных инструментов.
+
+\subsubsection{Принципы перехвата пакетов Bluetooth}
+
+Перехват трафика Bluetooth возможен несколькими способами:
+
+\textbf{1. Программный сниффинг через HCI (Host Controller Interface):}
+\begin{itemize}
+    \item Утилита \texttt{btmon} перехватывает все HCI-пакеты между хостом (ОС) и Bluetooth-контроллером;
+    \item Поддерживается захват команд, событий и ACL-данных;
+    \item Не требует специального оборудования, но показывает только трафик локального адаптера.
+\end{itemize}
+
+\textbf{2. Захват через Wireshark:}
+\begin{itemize}
+    \item Wireshark может читать дампы \texttt{btmon} в реальном времени или из файлов;
+    \item Обеспечивает декодирование протоколов всех уровней: HCI, L2CAP, RFCOMM, SDP, ATT, GATT;
+    \item Поддерживает фильтрацию по различным критериям (адреса, UUID, типы пакетов);
+    \item Предоставляет статистический анализ и визуализацию потоков данных.
+\end{itemize}
+
+\textbf{3. Аппаратный сниффинг (опционально):}
+\begin{itemize}
+    \item Использование специализированных адаптеров (Ubertooth One, Ellisys);
+    \item Позволяет перехватывать эфирный трафик между любыми устройствами;
+    \item Требует дополнительного оборудования, но дает полную картину обмена.
+\end{itemize}
+
+\subsubsection{Настройка программного обеспечения для анализа}
+
+\textbf{Настройка btmon:}
+
+Для захвата трафика в фоновом режиме используется команда:
+\begin{lstlisting}[language=bash]
+sudo btmon -w bluetooth_capture.log
+\end{lstlisting}
+
+Параметры:
+\begin{itemize}
+    \item \texttt{-w} — запись в бинарный файл формата \texttt{btsnoop};
+    \item \texttt{-r} — чтение ранее сохраненного файла;
+    \item Без параметров — вывод в терминал в текстовом виде.
+\end{itemize}
+
+\textbf{Интеграция с Wireshark:}
+
+Wireshark может напрямую читать вывод \texttt{btmon} через pipe:
+\begin{lstlisting}[language=bash]
+sudo btmon | wireshark -k -i -
+\end{lstlisting}
+
+Где:
+\begin{itemize}
+    \item \texttt{-k} — немедленное начало захвата;
+    \item \texttt{-i -} — чтение со стандартного ввода.
+\end{itemize}
+
+Альтернативно, можно сохранить дамп и открыть его позже:
+\begin{lstlisting}[language=bash]
+# Захват
+sudo btmon -w capture.btsnoop
+
+# Анализ в Wireshark
+wireshark capture.btsnoop
+\end{lstlisting}
+
+\textbf{Фильтры Wireshark для анализа Bluetooth:}
+
+Для эффективного анализа разработаны специализированные фильтры:
+
+\begin{itemize}
+    \item \texttt{bthci} — все HCI-пакеты;
+    \item \texttt{bthci\_cmd} — HCI команды;
+    \item \texttt{bthci\_evt} — HCI события;
+    \item \texttt{bthci\_evt.code == 0x03} — событие Connection Complete;
+    \item \texttt{bthci\_evt.code == 0x2f} — Extended Inquiry Result;
+    \item \texttt{btl2cap} — пакеты L2CAP;
+    \item \texttt{btrfcomm} — трафик RFCOMM;
+    \item \texttt{btatt} — протокол ATT (BLE);
+    \item \texttt{btgatt} — профиль GATT.
+\end{itemize}
+
+\textbf{Примеры анализа конкретных процедур:}
+
+\begin{enumerate}
+    \item \textbf{Процедура сопряжения (Pairing):}
+    \begin{lstlisting}
+bthci_evt.code == 0x17 || bthci_evt.code == 0x06
+    \end{lstlisting}
+    Отображает Link Key Request, IO Capability Request/Response, User Confirmation Request.
+    
+    \item \textbf{Обнаружение устройств (Inquiry):}
+    \begin{lstlisting}
+bthci_evt.code == 0x01 || bthci_evt.code == 0x02 || bthci_evt.code == 0x2f
+    \end{lstlisting}
+    Показывает Inquiry Complete, Inquiry Result, Extended Inquiry Result.
+    
+    \item \textbf{BLE GATT операции:}
+    \begin{lstlisting}
+btatt.opcode == 0x12 || btatt.opcode == 0x1b
+    \end{lstlisting}
+    Фильтрует Read Request и Write Request.
+\end{enumerate}
+
+\subsubsection{Практическое применение анализа трафика в лабораторных работах}
+
+Анализ трафика интегрирован в учебный процесс следующим образом:
+
+\begin{enumerate}
+    \item \textbf{Визуализация установления соединения:}
+    Студенты наблюдают последовательность пакетов: Inquiry $\rightarrow$ Page $\rightarrow$ Connection $\rightarrow$ Service Discovery $\rightarrow$ Data Transfer.
+    
+    \item \textbf{Анализ накладных расходов:}
+    Сравнение размера полезной нагрузки и общего размера пакетов позволяет рассчитать эффективность протокола.
+    
+    \item \textbf{Исследование механизмов безопасности:}
+    Перехват пакетов Pairing демонстрирует обмен ключами и активацию шифрования (Encryption Change event).
+    
+    \item \textbf{Отладка прошивок:}
+    При проблемах с подключением анализ HCI-логов помогает выявить причину (таймауты, ошибки аутентификации, несовместимые параметры).
+    
+    \item \textbf{Сравнение BR/EDR и BLE:}
+    Студенты наглядно видят разницу в количестве служебных пакетов, интервалах соединения и размерах MTU.
+\end{enumerate}
+
+\subsection{Конфигурация программного обеспечения стенда}
+
+Для полноценной работы стенда требуется следующая конфигурация ПО:
+
+\textbf{На стороне ПК:}
+\begin{itemize}
+    \item ОС Linux (Ubuntu 20.04+ или аналогичная) с ядром 5.0+;
+    \item BlueZ 5.50+ (официальный стек Bluetooth для Linux);
+    \item Wireshark 3.0+ с поддержкой Bluetooth;
+    \item Python 3.8+ с библиотеками \texttt{pybluez}, \texttt{pyserial};
+    \item Arduino IDE 1.8+ или PlatformIO для компиляции прошивок.
+\end{itemize}
+
+\textbf{На стороне ESP32:}
+\begin{itemize}
+    \item ESP-IDF (Espressif IoT Development Framework) или Arduino Core for ESP32;
+    \item Библиотеки \texttt{BluetoothSerial.h} для Classic Bluetooth;
+    \item Библиотеки \texttt{BLEDevice.h} для BLE.
+\end{itemize}
+
+\textbf{Дополнительные утилиты:}
+\begin{itemize}
+    \item \texttt{bluetoothctl} — интерактивный клиент для управления Bluetooth;
+    \item \texttt{rfcomm} — привязка RFCOMM-устройств к tty;
+    \item \texttt{hciconfig}/\texttt{hcitool} (устаревшие, но полезные для диагностики).
+\end{itemize}
+
+\subsection{Выводы по главе}
+
+В данной главе представлена полная реализация учебного лабораторного стенда, включающая:
+
+\begin{enumerate}
+    \item Разработку специализированных прошивок для ESP32, поддерживающих как классический Bluetooth, так и BLE, с возможностью гибкой настройки параметров передачи;
+    
+    \item Создание комплекса лабораторных работ, охватывающих ключевые аспекты технологии: от базовых принципов пикосетей до современных профилей GATT;
+    
+    \item Интеграцию профессиональных инструментов анализа трафика (btmon, Wireshark) с подробной методикой перехвата и декодирования пакетов;
+    
+    \item Настройку программного окружения, обеспечивающего совместимость всех компонентов стенда.
+\end{enumerate}
+
+Разработанный стенд позволяет студентам не только теоретически изучать протоколы Bluetooth, но и проводить реальные измерения, анализировать трафик и отлаживать собственные реализации, что существенно повышает качество образования в области беспроводных технологий.
