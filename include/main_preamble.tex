@@ -40,7 +40,20 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{setspace}
 \usepackage{etoolbox}
-\usepackage{svg}
+\usepackage[
+  backend=biber,
+  style=gost-numeric,
+  sorting=none,
+  language=auto,
+  autolang=other,
+  bibencoding=utf8,
+  url=true,
+  doi=true,
+  isbn=false,
+  eprint=false
+]{biblatex}
+\addbibresource{include/references.bib}
+
 
 \onehalfspacing % Полуторный интервал для основного текста
 \setlength{\parindent}{1.25cm} % Абзацный отступ по ГОСТ
