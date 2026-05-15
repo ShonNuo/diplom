@@ -110,7 +110,7 @@ user@host:~$ pip3 install --user pybluez
         \item Отправлять тестовые команды (например, \texttt{"PING"}).
         \item Принимать ответы и проверять, содержится ли в них ваше ФИО.
     \end{itemize}
-    Базовая структура приведена в листинге 1. Замените \texttt{MAC\_ESP1} и \texttt{MAC\_ESP2} на реальные адреса ваших модулей.
+    Базовая структура приведена в листинге~\ref{lst:lab2_1}. Замените \texttt{MAC\_ESP1} и \texttt{MAC\_ESP2} на реальные адреса ваших модулей.
 
     \item Запустите скрипт с правами суперпользователя (для доступа к HCI-интерфейсу):
     \begin{lstlisting}
@@ -128,7 +128,7 @@ user@host:~$ sudo btmon -w lab02_trace.log
     \item Зафиксируйте в отчёте успешные подключения, факт возврата правильного ФИО от обоих устройств, переданные/принятые байты.
 \end{enumerate}
 
-\begin{lstlisting}[caption={Базовая структура Python-скрипта для управления пикосетью}]
+\begin{lstlisting}[caption={Базовая структура Python-скрипта для управления пикосетью}, label={lst:lab2_1}]
 import socket
 import time
 import bluetooth

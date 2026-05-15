@@ -68,7 +68,7 @@ output = result.stdout + result.stderr
 
     \item \textbf{Прошивка ESP32 (Bridge):}
     \begin{itemize}
-        \item Используйте код из Листинга 4.1.
+      \item Используйте код из Листинга~\ref{lst:lab4_1}.
         \item В коде замените \texttt{SERVER\_MAC} на MAC-адрес ПК 2.
         \item Загрузите прошивку в ESP32.
     \end{itemize}
@@ -77,7 +77,7 @@ output = result.stdout + result.stderr
     \begin{itemize}
         \item Сопрягите ПК 1 с ESP32.
         \item Привяжите ESP32 к порту: \texttt{sudo rfcomm bind /dev/rfcomm0 <MAC\_ESP32>}.
-        \item Используйте скрипт \texttt{bt\_client.py} (Листинг 4.2) для отправки команд.
+        \item Используйте скрипт \texttt{bt\_client.py} (Листинг~\ref{lst:lab4_1}) для отправки команд.
     \end{itemize}
 
     \item \textbf{Запуск системы:}
@@ -95,14 +95,9 @@ output = result.stdout + result.stderr
         \item Измерьте время отклика для простых команд (\texttt{echo test}) и сложных (\texttt{ping -c 1 google.com}).
     \end{itemize}
 
-    \item \textbf{Анализ трафика:}
-    \begin{itemize}[nosep]
-        \item Запустите \texttt{btmon} на ПК 1 и ПК 2 одновременно.
-        \item Сравните временные метки пакетов ACL для выявления задержек на этапе ретрансляции в ESP32.
-    \end{itemize}
-\end{enumerate}
+    \end{enumerate}
 
-\begin{lstlisting}[language=Python, caption={Листинг 4.2. Серверная часть на ПК 2 (Executor)}]
+\begin{lstlisting}[language=Python, caption={Серверная часть на ПК 2 (Executor)}, label={lst:lab4_1}]
 import serial
 import subprocess
 import sys
@@ -171,7 +166,6 @@ if __name__ == "__main__":
         \item лог работы клиентского терминала (примеры успешных и ошибочных команд);
         \item таблица замеров времени отклика (RTT) для различных типов команд.
     \end{enumerate}
-    \item Анализ задержек: оценка вклада каждого звена цепи в общую задержку.
     \item Ответы на контрольные вопросы.
     \item Выводы о надежности такой схемы для задач удаленного администрирования.
 \end{enumerate}

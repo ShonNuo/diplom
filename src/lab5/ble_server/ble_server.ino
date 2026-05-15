@@ -14,7 +14,6 @@
 #include <BLEServer.h>
 
 // ===== Custom Service and Characteristic UUIDs =====
-// Generate your own UUIDs for production use!
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_RX   "beb5483e-36e1-4688-b7f5-ea07361b26a8"  // Write (Client -> Server)
 #define CHARACTERISTIC_TX   "beb5483e-36e1-4688-b7f5-ea07361b26a9"  // Read + Notify (Server -> Client)
@@ -83,7 +82,6 @@ void setup() {
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
   );
   
-  // Add CCCD descriptor (required for Notify/Indicate) - FIXED for Core 3.x
   BLEDescriptor *pccd = new BLEDescriptor(BLEUUID((uint16_t)0x2902));
   pTxCharacteristic->addDescriptor(pccd);
 
@@ -123,7 +121,7 @@ void loop() {
     oldDeviceConnected = deviceConnected;
   }
 
-  // Optional: Send periodic data via NOTIFY (uncomment if needed)
+  // Optional: Send periodic data via NOTIFY
   /*
   if (deviceConnected) {
     static uint32_t lastSend = 0;

@@ -40,7 +40,7 @@ void loop() {
     uint32_t sent = 0;
 
     while (millis() - start < 10000) {
-      // афдыу = Write Without Response (maximum throughput)
+      // false = Write Without Response (maximum throughput)
       pRemoteCharacteristic->writeValue(payload, sizeof(payload), true);
       sent += sizeof(payload);
       yield();

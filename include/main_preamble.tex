@@ -31,8 +31,8 @@
 
 \usepackage{enumitem}
 \setlist[enumerate]{label=--, leftmargin=*, align=left}
-\setlist[itemize]{label=--, leftmargin=*, align=left}
 
+%\usepackage{pdfpages}
 \usepackage{titlesec}
 \usepackage{indentfirst}
 \usepackage{seqsplit}
@@ -56,6 +56,7 @@
   isbn=false,
   eprint=false
 ]{biblatex}
+\DeclareFieldFormat{url}{\textnormal{\url{#1}}}
 \addbibresource{include/references.bib}
 
 \onehalfspacing % Полуторный интервал для основного текста
@@ -81,6 +82,8 @@
   {\thesubsubsection}{1em}{}
 
 % -------------------- НАСТРОЙКА ТАБЛИЦ ПО ГОСТ --------------------
+\usepackage{xltabular} % Заменяет tabularx + добавляет поддержку longtable
+\AtBeginEnvironment{xltabular}{\singlespacing} % Одинарный интервал внутри таблицы по ГОСТ
 % Оформление подписи: Таблица 1.1 — Название таблицы (без точки в конце)
 \DeclareCaptionLabelFormat{gosttable}{Таблица #2}
 
@@ -105,14 +108,16 @@
 % -------------------- ЛИСТИНГИ --------------------
 % Оформление подписи листингов
 \DeclareCaptionFormat{listing}{
-  \parbox{\textwidth}{\centering#1#2#3}
+  \parbox{\textwidth}{#1#2#3}
 }
+\AtBeginDocument{\counterwithin{lstlisting}{section}}
+\renewcommand{\lstlistingname}{Листинг}
 
 \captionsetup[lstlisting]{
   format=listing,
   labelfont=it,
   textfont=it,
-  justification=centering,
+  justification=raggedright,
   singlelinecheck=false
 }
 
@@ -142,14 +147,11 @@
 
 % -------------------- ПРИЛОЖЕНИЯ --------------------
 \newcounter{appendixctr}
+\renewcommand{\theappendixctr}{\Asbuk{appendixctr}}
 
 \newcommand{\appendixsection}[1]{
   \clearpage
   \refstepcounter{appendixctr}
-  \section*{ПРИЛОЖЕНИЕ \Asbuk{appendixctr}}
-  \addcontentsline{toc}{section}{Приложение \Asbuk{appendixctr}}
-  
-  \begin{center}
-    #1
-  \end{center}
+  \section*{Приложение \theappendixctr. #1}
+  \addcontentsline{toc}{section}{Приложение \theappendixctr. #1}
 }

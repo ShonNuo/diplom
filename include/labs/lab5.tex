@@ -35,14 +35,21 @@ Bluetooth Low Energy (BLE, версия Bluetooth 4.0 и выше) был раз
 
 Основные профили классического Bluetooth, наиболее широко применяемые в современных устройствах, представлены в табл. 5.1.
 
-\begin{table}[htbp]
-\centering
+\begin{xltabular}{\textwidth}{>{\raggedright\arraybackslash}l >{\raggedright\arraybackslash}X}
 \caption{Основные профили классического Bluetooth (BR/EDR)}
-\label{tab:classical_bt_profiles}
-\begin{tabularx}{\textwidth}{lX}
+\label{tab:classical_bt_profiles} \\
 \toprule
 \textbf{Профиль (UUID)} & \textbf{Назначение и используемый стек протоколов} \\
 \midrule
+\endfirsthead
+% Заголовок для всех последующих страниц (ГОСТ)
+\multicolumn{2}{@{}l@{}}{\textit{Продолжение таблицы \thetable}} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+
+% --- Содержимое таблицы ---
 \textbf{GAP} (\texttt{0x1800}) & \textit{Generic Access Profile}. Базовый профиль, определяющий процедуры обнаружения устройств, установления соединения, режимы безопасности и модели взаимодействия. Использует L2CAP. \\
 \textbf{SDP} (\texttt{0x0001}) & \textit{Service Discovery Protocol}. Обеспечивает поиск и получение информации о доступных сервисах и их параметрах на удалённых устройствах. Работает поверх L2CAP. \\
 \textbf{SPP} (\texttt{0x1101}) & \textit{Serial Port Profile}. Эмулирует последовательный порт (RS-232) поверх радиоканала. Широко используется для терминального доступа, прошивки МК и передачи сырых данных. Стек: RFCOMM $\rightarrow$ L2CAP. \\
@@ -52,9 +59,7 @@ Bluetooth Low Energy (BLE, версия Bluetooth 4.0 и выше) был раз
 \textbf{HID} (\texttt{0x1124}) & \textit{Human Interface Device Profile}. Профиль для клавиатур, мышей, геймпадов и сканеров. Обеспечивает низкую задержку ввода. Стек: HIDP $\rightarrow$ L2CAP. \\
 \textbf{PAN} (\texttt{0x1115/0x1116}) & \textit{Personal Area Networking}. Организация локальной сети поверх Bluetooth (режимы NAP, PANU, GN). Позволяет устройствам обмениваться IP-пакетами. Стек: BNEP $\rightarrow$ L2CAP. \\
 \textbf{FTP/OPP} (\texttt{0x1106/0x1105}) & \textit{File Transfer / Object Push Profile}. Профили передачи файлов и объектов (визитки, календари, изображения). Исторически используются в мобильных устройствах. Стек: OBEX $\rightarrow$ RFCOMM $\rightarrow$ L2CAP. \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\end{xltabular}
 
 \textbf{Механизм активации профиля:}
 \begin{enumerate}[nosep]

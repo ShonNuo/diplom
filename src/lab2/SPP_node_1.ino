@@ -1,5 +1,5 @@
 /*
- * ESP32 Bluetooth Serial - Node 2
+ * ESP32 Bluetooth Serial - Node 1
  * Connects to PC via /dev/rfcomm1
  */
 

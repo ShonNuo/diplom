@@ -86,7 +86,7 @@ bool connectToServer() {
   }
   Serial.println("[CLIENT] TX characteristic found");
 
-  // Subscribe to notifications - NEW API for Core 3.x
+  // Subscribe to notifications
   if (pRemoteCharTx->canNotify()) {
     pRemoteCharTx->registerForNotify(notifyCallback);
     Serial.println("[CLIENT] Subscribed to notifications");
