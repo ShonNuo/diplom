@@ -1,181 +1,297 @@
-\section[Организация удаленного выполнения команд через Bluetooth-мост на базе ESP32]
-{\\Организация удаленного выполнения команд через Bluetooth-мост \\ на базе ESP32}
+\section[Организация удаленного выполнения команд через BLE-мост на базе ESP32]
+{\\Организация удаленного выполнения команд через BLE-мост \\ на базе ESP32}
 
 \subsection{Цель работы}
-Изучить принципы ретрансляции данных в сетях Bluetooth. Получить практические навыки создания многоточечных соединений с участием встроенных систем. Реализовать архитектуру «Клиент–Шлюз–Сервер», где микроконтроллер ESP32 выступает в роли прозрачного моста между двумя хостами, обеспечивая удаленное выполнение команд на целевом ПК.
+Изучить принципы ретрансляции данных в Bluetooth Low Energy (BLE) сетях. Получить практические навыки создания GATT-сервисов и взаимодействия между устройствами. Реализовать архитектуру «Клиент–Шлюз–Сервер», где микроконтроллер ESP32 выступает в роли BLE-моста между двумя хостами, обеспечивая удаленное выполнение команд.
 
 \subsection{Задачи}
 \begin{itemize}[nosep]
-    \item Изучить возможности одновременной работы ESP32 в режимах SPP-клиента и SPP-сервера.
-    \item Рассмотреть концепцию туннелирования данных через промежуточный узел.
-    \item Настроить два ПК: один как источник команд (Client), другой как исполнитель (Server).
-    \item Разработать прошивку для ESP32, осуществляющую двунаправленную пересылку байтов между двумя Bluetooth-каналами.
-    \item Реализовать серверную часть на Python на втором ПК, выполняющую полученные команды в оболочке ОС.
-    \item Разработать клиентский терминал на первом ПК для отправки команд и отображения результатов.
-    \item Протоколировать задержки и целостность данных при прохождении через промежуточный узел.
+    \item Изучить архитектуру BLE и принципы работы GATT (сервисы и характеристики).
+    \item Рассмотреть механизм передачи данных через BLE-характеристики.
+    \item Реализовать промежуточный узел (ESP32), выполняющий ретрансляцию данных.
+    \item Настроить взаимодействие между двумя ПК через ESP32.
+    \item Разработать серверную часть на Python для выполнения команд.
+    \item Разработать клиентский терминал для отправки команд.
+    \item Исследовать задержки передачи данных через BLE.
 \end{itemize}
 
 \subsection{Теоретический материал}
 
-\subsubsection{Архитектура «Bluetooth-мост»}
-В классической пикосети Bluetooth одно устройство является мастером, а другие — слейвами. Однако современные чипы, такие как ESP32, поддерживают роль \textbf{Dual Mode} и могут одновременно поддерживать несколько активных соединений или выступать в разных ролях для разных устройств.
-
-В данной работе реализуется топология, где ESP32:
-\begin{enumerate}[nosep]
-    \item Выступает в роли \textbf{SPP Server} для ПК-Клиента (принимает команды).
-    \item Выступает в роли \textbf{SPP Client} для ПК-Сервера (подключается к нему и передает команды).
-\end{enumerate}
-
-Таким образом, ESP32 действует как аппаратный шлюз. Данные, поступившие от Клиента по каналу A, считываются микроконтроллером и немедленно передаются в канал B (на Сервер). Ответ от Сервера по каналу B считывается и перенаправляется в канал A (Клиенту).
-
-\subsubsection{Проблемы буферизации и потокового управления}
-При ретрансляции данных через микроконтроллер критически важно учитывать разницу в скоростях обработки.
-\begin{itemize}[nosep]
-    \item \textbf{Буферизация}: Если ПК-Сервер обрабатывает команду долго (например, компиляция или тяжелый запрос к БД), ESP32 должен хранить входящие данные во внутреннем буфере или приостанавливать прием (Flow Control), чтобы избежать переполнения памяти.
-    \item {Синхронность}: В простейшей реализации используется блокирующий ввод-вывод. ESP32 ждет завершения приема пакета от Клиента, затем ждет отправки на Сервер, затем ждет ответа. Это создает суммарную задержку $T_{total} = T_{BT1} + T_{proc} + T_{BT2}$.
+\subsubsection{Архитектура BLE и GATT}
+В BLE взаимодействие устройств строится на основе модели GATT (Generic Attribute Profile), где:
+\begin{itemize}
+    \item \textbf{Сервис (Service)} — логическая группа характеристик.
+    \item \textbf{Характеристика (Characteristic)} — канал передачи данных.
 \end{itemize}
 
-\subsubsection{Удаленное выполнение команд (Remote Code Execution)}
-Для выполнения команд на ПК-Сервере используется механизм вызова системной оболочки (shell). В Python за это отвечает модуль \texttt{subprocess}.
+В данной работе ESP32 реализует BLE-сервер с двумя характеристиками:
+\begin{itemize}
+    \item RX — для приема данных от клиента;
+    \item TX — для отправки данных клиенту.
+\end{itemize}
+
+\textbf{Примечание.} Более подробно архитектура BLE описана в лабораторной работе №5.
+
+\subsubsection{Архитектура «BLE-мост»}
+ESP32 выполняет роль промежуточного узла (шлюза):
+\begin{enumerate}[nosep]
+    \item Принимает команды от клиента через характеристику RX.
+    \item Передает команды серверному ПК.
+    \item Получает результат выполнения.
+    \item Отправляет ответ обратно клиенту через характеристику TX.
+\end{enumerate}
+
+Таким образом реализуется прозрачная двунаправленная передача данных.
+
+\subsubsection{Буферизация и ограничения BLE}
+BLE передает данные небольшими пакетами (обычно до 20–247 байт в зависимости от MTU). Поэтому:
+\begin{itemize}
+    \item длинные сообщения необходимо разбивать на части (chunking);
+    \item требуется учитывать задержки между пакетами;
+    \item возможны потери синхронизации при высокой нагрузке.
+\end{itemize}
+
+Общее время отклика можно оценить как:
+\[
+T_{total} = T_{BLE} + T_{proc} + T_{BLE}
+\]
+
+\subsubsection{Удаленное выполнение команд}
+На сервере используется Python и модуль \texttt{subprocess}:
 \begin{lstlisting}[language=Python]
-import subprocess
-result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-output = result.stdout + result.stderr
+result = subprocess.run(cmd, shell=True, capture\_output=True, text=True)
 \end{lstlisting}
-\textbf{Внимание!} Открытый доступ к выполнению произвольных команд представляет угрозу безопасности. В рамках лабораторной работы предполагается использование доверенной локальной сети.
+
+\textbf{Важно:} выполнение произвольных команд небезопасно и допустимо только в лабораторной среде.
 
 \subsection{Порядок выполнения лабораторной работы}
 
 \textbf{Оборудование:}
-\begin{itemize}[nosep]
-    \item ПК 1 (Client): Отправитель команд.
-    \item ПК 2 (Server): Исполнитель команд (должен иметь Bluetooth-адаптер).
-    \item Модуль ESP32.
+\begin{itemize}
+    \item ПК 1 (Client)
+    \item ПК 2 (Server)
+    \item ESP32
 \end{itemize}
 
-\begin{enumerate}[nosep, leftmargin=*]
-    \item \textbf{Подготовка ПК-Сервера (Target):}
+\begin{enumerate}
+
+\item \textbf{Подготовка ПК-Сервера (Executor):}
+\begin{itemize}
+  \item Используйте готовый Python-скрипт серверной части, приведённый в листинге~\ref{lst:lab4_server}.
+    
+
+    \item Запустите скрипт — он будет ожидать команды от ESP32.
+\end{itemize}
+
+\item \textbf{Прошивка ESP32 (Bridge):}
+\begin{itemize}
+    \item Используйте файл \texttt{bridge.ino}.
+    \item Загрузите прошивку в ESP32.
+    \item ESP32 будет:
     \begin{itemize}
-        \item На ПК 2 создайте Python-скрипт \texttt{bt\_server.py}, который:
-        \begin{enumerate}[label=\alph*), nosep]
-            \item Запускает SPP-сервер (через \texttt{rfcomm} или прямой сокет).
-            \item Ожидает подключения от ESP32.
-            \item При получении строки выполняет её через \texttt{subprocess}.
-            \item Возвращает stdout/stderr обратно в Bluetooth-канал.
-        \end{enumerate}
-        \item Запишите MAC-адрес Bluetooth-адаптера ПК 2.
+        \item принимать команды через RX;
+        \item отправлять ответы через TX;
+        \item работать как BLE-посредник.
     \end{itemize}
+\end{itemize}
 
-    \item \textbf{Прошивка ESP32 (Bridge):}
+\item \textbf{Настройка ПК-Клиента (Client):}
+\begin{itemize}
+  \item Используйте Python-скрипт клиента, приведённый в листинге~\ref{lst:lab4_client}.
+    \item Он выполняет:
     \begin{itemize}
-      \item Используйте код из Листинга~\ref{lst:lab4_1}.
-        \item В коде замените \texttt{SERVER\_MAC} на MAC-адрес ПК 2.
-        \item Загрузите прошивку в ESP32.
+        \item поиск ESP32;
+        \item подключение;
+        \item отправку команд;
+        \item получение ответов.
     \end{itemize}
+\end{itemize}
 
-    \item \textbf{Настройка ПК-Клиента (Source):}
+\item \textbf{Запуск системы:}
+\begin{enumerate}[label=\alph*)]
+    \item Запустите сервер на ПК 2.
+    \item Включите ESP32.
+    \item Запустите клиент на ПК 1.
+\end{enumerate}
+
+\item \textbf{Тестирование:}
+\begin{itemize}
+    \item Выполните команды:
     \begin{itemize}
-        \item Сопрягите ПК 1 с ESP32.
-        \item Привяжите ESP32 к порту: \texttt{sudo rfcomm bind /dev/rfcomm0 <MAC\_ESP32>}.
-        \item Используйте скрипт \texttt{bt\_client.py} (Листинг~\ref{lst:lab4_1}) для отправки команд.
+        \item \texttt{echo test}
+        \item \texttt{uname -a}
+        \item \texttt{ls}
     \end{itemize}
+    \item Проверьте обработку ошибок (неверные команды).
+    \item Измерьте задержку ответа.
+\end{itemize}
 
-    \item \textbf{Запуск системы:}
-    \begin{enumerate}[label=\alph*), nosep]
-        \item На ПК 2 запустите \texttt{python3 bt\_server.py}. Он перейдет в режим ожидания подключения.
-        \item Перезагрузите ESP32. Он автоматически подключится к ПК 2 и начнет ждать подключения от ПК 1.
-        \item На ПК 1 запустите \texttt{python3 bt\_client.py}.
-    \end{enumerate}
+\end{enumerate}
 
-    \item \textbf{Тестирование:}
-    \begin{itemize}[nosep]
-        \item Отправьте команду \texttt{uname -a}. Убедитесь, что вернулась информация о ядре ПК 2.
-        \item Отправьте команду \texttt{ls -la /tmp}. Проверьте вывод списка файлов.
-        \item Отправьте некорректную команду (например, \texttt{fake\_cmd}). Убедитесь, что вернулась ошибка (stderr).
-        \item Измерьте время отклика для простых команд (\texttt{echo test}) и сложных (\texttt{ping -c 1 google.com}).
-    \end{itemize}
-
-    \end{enumerate}
-
-\begin{lstlisting}[language=Python, caption={Серверная часть на ПК 2 (Executor)}, label={lst:lab4_1}]
-import serial
+\begin{lstlisting}[caption={Серверная часть на ПК 2}, label={lst:lab4_server}]
+import asyncio
 import subprocess
-import sys
+from bleak import BleakScanner, BleakClient
 
-PORT = '/dev/rfcomm0' # Or direct socket if rfcomm bind is not used
-BAUDRATE = 115200
+# ESP32 name and characteristic UUIDs from firmware
+DEVICE_NAME = "ESP32-BLE-Bridge"
+CHARACTERISTIC_UUID_TX = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
-def execute_command(cmd):
+global_client = None
+
+# Function triggered when a command is received from the Client
+async def command_handler(sender, data):
+    command = data.decode('utf-8', errors='ignore').strip()
+    print(f"[+] Command received: '{command}'")
+
     try:
-        # Execute command in bash shell
-        result = subprocess.run(
-            cmd,
+        # Execute the command in the OS terminal
+        # shell=True allows running system commands like dir, echo, ipconfig
+        process = subprocess.run(
+            command,
             shell=True,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=10 # Execution timeout 10 sec
+            timeout=10 # 10-second timeout to prevent hanging
         )
-        output = result.stdout
-        if result.stderr:
-            output += "\n[ERR]: " + result.stderr
-        return output.strip()
-    except Exception as e:
-        return f"[EXEC ERROR]: {str(e)}"
 
-def main():
-    print(f"Listening on {PORT}...")
-    try:
-        ser = serial.Serial(PORT, BAUDRATE, timeout=None)
+        # Collect output (stdout first, if empty — use stderr)
+        output = process.stdout if process.stdout else process.stderr
+        if not output:
+            output = "[System]: Command executed, no output."
+
+    except subprocess.TimeoutExpired:
+        output = "[-] Error: Command timeout exceeded (10 sec)."
+    except Exception as e:
+        output = f"[-] Execution error: {str(e)}"
+
+    print(f"[...] Sending response to client ({len(output)} bytes)...")
+
+    # BLE transmits data in packets. If response is long, split into chunks (MTU)
+    # Using safe default chunk size of 200 bytes
+    chunk_size = 200
+    output_bytes = output.encode('utf-8', errors='ignore')
+
+    for i in range(0, len(output_bytes), chunk_size):
+        chunk = output_bytes[i:i+chunk_size]
+        if global_client and global_client.is_connected:
+            await global_client.write_gatt_char(CHARACTERISTIC_UUID_TX, chunk)
+            await asyncio.sleep(0.05) # Small delay between packets
+
+async def main():
+    global global_client
+    print(f"[...] Searching for device {DEVICE_NAME}...")
+    device = await BleakScanner.find_device_by_name(DEVICE_NAME)
+
+    if not device:
+        print(f"[-] Device {DEVICE_NAME} not found. Check if ESP32 is powered on.")
+        return
+
+    print(f"[+] ESP32 found: {device.address}. Connecting...")
+
+    async with BleakClient(device) as client:
+        global_client = client
+        print("[+] Successfully connected to the bridge!")
+        print("=== Server is running and waiting for commands ===")
+
+        # Subscribe to TX characteristic (ESP32 forwards client commands here)
+        # Since bleak requires a sync function in start_notify, we use asyncio.ensure_future
+        await client.start_notify(
+            CHARACTERISTIC_UUID_TX,
+            lambda sender, data: asyncio.ensure_future(command_handler(sender, data))
+        )
+
+        # Keep the script running
         while True:
-            # Read command until newline
-            cmd_bytes = ser.readline()
-            if not cmd_bytes:
-                continue
-
-            cmd = cmd_bytes.decode('utf-8').strip()
-            print(f"Received: {cmd}")
-
-            if cmd.lower() == 'exit':
-                break
-
-            # Execute and get result
-            response = execute_command(cmd)
-
-            # Send result back
-            ser.write((response + "\n").encode('utf-8'))
-
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        if 'ser' in locals():
-            ser.close()
+            await asyncio.sleep(1)
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n[-] Server stopped.")
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Клиентская часть на ПК 1}, label={lst:lab4_client}]
+import asyncio
+from bleak import BleakScanner, BleakClient
+
+# ESP32 name and characteristic UUIDs from firmware
+DEVICE_NAME = "ESP32-BLE-Bridge"
+CHARACTERISTIC_UUID_RX = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
+
+# Function to handle incoming responses from the server
+def notification_handler(sender, data):
+    print(f"\n[Response from Server]:\n{data.decode('utf-8', errors='ignore')}")
+    print("\nEnter command: ", end="", flush=True)
+
+async def main():
+    print(f"[...] Searching for device {DEVICE_NAME}...")
+    device = await BleakScanner.find_device_by_name(DEVICE_NAME)
+
+    if not device:
+        print(f"[-] Device {DEVICE_NAME} not found. Check if ESP32 is powered on.")
+        return
+
+    print(f"[+] ESP32 found: {device.address}. Connecting...")
+
+    async with BleakClient(device) as client:
+        print("[+] Successfully connected to the bridge!")
+
+        # Subscribe to notifications to receive responses from the server
+        await client.start_notify(CHARACTERISTIC_UUID_RX, notification_handler)
+
+        print("\n=== Client is ready ===")
+        print("Example commands: 'dir', 'echo Hello', 'ipconfig' (or 'ifconfig' for Linux)")
+        print("Type 'exit' to quit")
+
+        while True:
+            # Read command from console (run in a thread to avoid blocking async loop)
+            command = await asyncio.to_thread(input, "Enter command: ")
+
+            if command.strip().lower() == 'exit':
+                break
+
+            if not command.strip():
+                continue
+
+            # Send command to the server via ESP32
+            print(f"[...] Sending: '{command}'")
+            await client.write_gatt_char(CHARACTERISTIC_UUID_RX, command.encode('utf-8'))
+
+            # Small delay to allow processing and response output
+            await asyncio.sleep(0.5)
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n[-] Client stopped.")
 \end{lstlisting}
 
 \subsection{Содержание отчета}
-\begin{enumerate}[nosep, leftmargin=*]
-    \item Заголовок согласно приложению.
-    \item Цель работы.
-    \item Схема соединения (ПК1 $\leftrightarrow$ ESP32 $\leftrightarrow$ ПК2).
-    \item Листинги результатов работы:
-    \begin{enumerate}[label=\alph*), nosep]
-        \item код прошивки ESP32 с комментариями по логике моста;
-        \item код серверной части на Python;
-        \item лог работы клиентского терминала (примеры успешных и ошибочных команд);
-        \item таблица замеров времени отклика (RTT) для различных типов команд.
-    \end{enumerate}
-    \item Ответы на контрольные вопросы.
-    \item Выводы о надежности такой схемы для задач удаленного администрирования.
+\begin{enumerate}
+    \item Цель работы
+    \item Схема: ПК1 $\leftrightarrow$ ESP32 $\leftrightarrow$ ПК2
+    \item Листинги:
+    \begin{itemize}
+        \item код ESP32 (bridge.ino);
+        \item сервер;
+        \item клиент;
+        \item примеры выполнения команд;
+        \item таблица задержек;
+    \end{itemize}
+    \item Ответы на вопросы
+    \item Выводы
 \end{enumerate}
 
 \section*{Контрольные вопросы}
-\begin{enumerate}[nosep, leftmargin=*]
-    \item Какие ограничения накладывает архитектура ESP32 на количество одновременных Bluetooth-соединений?
-    \item Почему при ретрансляции данных через микроконтроллер может возникать проблема рассинхронизации потоков?
-    \item Как обеспечить безопасность при удаленном выполнении команд (Remote Code Execution)?
-    \item Что произойдет с системой, если связь между ESP32 и ПК-Сервером оборвется во время выполнения длительной команды?
-    \item Чем отличается данная схема от прямого SSH-подключения к ПК-Серверу? В каких случаях оправдано использование промежуточного Bluetooth-узла?
-    \item Как влияет размер буфера UART в ESP32 на максимальную длину передаваемой команды или ответа?
+\begin{enumerate}
+    \item Какие ограничения имеет BLE по размеру пакета?
+    \item Почему требуется разбиение данных на чанки?
+    \item Какие риски связаны с subprocess?
+    \item Что произойдет при разрыве соединения?
+    \item В чем отличие BLE от классического Bluetooth (SPP)?
+    \item Как влияет MTU на производительность?
 \end{enumerate}
